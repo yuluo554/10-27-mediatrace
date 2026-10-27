@@ -1,0 +1,192 @@
+package main
+
+import (
+	"encoding/binary"
+	"io"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/yuluo554/mediatrace/internal/policy"
+)
+
+// mkFile 写一个最小合法 MP4 结构到临时文件并返回路径。
+func mkFile(t *testing.T, payload []byte) string {
+	t.Helper()
+	dir := t.TempDir()
+	p := filepath.Join(dir, "sample.mp4")
+	if err := os.WriteFile(p, payload, 0o444); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+func boxBytes(typ string, payload []byte) []byte {
+	buf := make([]byte, 8+len(payload))
+	binary.BigEndian.PutUint32(buf[0:4], uint32(8+len(payload)))
+	copy(buf[4:8], typ)
+	copy(buf[8:], payload)
+	return buf
+}
+
+func runCaptured(t *testing.T, args ...string) int {
+	t.Helper()
+	devnull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer devnull.Close()
+	return run(args, devnull, devnull)
+}
+
+func TestVersionExitZero(t *testing.T) {
+	if code := runCaptured(t, "--version"); code != policy.ExitPass {
+		t.Fatalf("--version exit=%d, want %d", code, policy.ExitPass)
+	}
+}
+
+func TestNoArgsIsUsageError(t *testing.T) {
+	if code := runCaptured(t); code != policy.ExitUsage {
+		t.Fatalf("no args exit=%d, want %d", code, policy.ExitUsage)
+	}
+}
+
+func TestUnknownCommandIsUsageError(t *testing.T) {
+	if code := runCaptured(t, "frobnicate"); code != policy.ExitUsage {
+		t.Fatalf("unknown cmd exit=%d, want %d", code, policy.ExitUsage)
+	}
+}
+
+func TestAuditMissingFileIsUsageError(t *testing.T) {
+	if code := runCaptured(t, "audit", filepath.Join(t.TempDir(), "nope.mp4")); code != policy.ExitUsage {
+		t.Fatalf("missing file exit=%d, want %d", code, policy.ExitUsage)
+	}
+}
+
+func TestAuditUnparsableFileIsUsageError(t *testing.T) {
+	p := mkFile(t, []byte{0, 0, 0, 4, 'f', 'r', 'e', 'e'}) // size < header
+	if code := runCaptured(t, "audit", p); code != policy.ExitUsage {
+		t.Fatalf("bad box exit=%d, want %d (parse error is NOT gray)", code, policy.ExitUsage)
+	}
+}
+
+func TestAuditUnknownModuleIsUsageError(t *testing.T) {
+	p := mkFile(t, boxBytes("ftyp", []byte("isom")))
+	if code := runCaptured(t, "audit", p, "--modules", "M9"); code != policy.ExitUsage {
+		t.Fatalf("unknown module exit=%d, want %d", code, policy.ExitUsage)
+	}
+}
+
+// 骨架期：模块未实现 → 退出码 3，绝不冒充 PASS。
+func TestSkeletonModuleIsNotImplemented(t *testing.T) {
+	p := mkFile(t, boxBytes("ftyp", []byte("isom")))
+	if code := runCaptured(t, "audit", p); code != policy.ExitUsage {
+		t.Fatalf("skeleton audit exit=%d, want %d (must not fake PASS)", code, policy.ExitUsage)
+	}
+}
+
+// G10: 审计不改输入文件字节。
+func TestAuditDoesNotModifyInput(t *testing.T) {
+	data := boxBytes("ftyp", []byte("isom"))
+	p := mkFile(t, data)
+	before, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runCaptured(t, "audit", p)
+	after, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(before) != string(after) {
+		t.Fatal("input file bytes changed by audit")
+	}
+}
+
+// 文档写的形态必须能被 parser 接受：`audit <file> --json` 与 `audit --json <file>`。
+// 这是发布包实测里最贵的一族（skill：「文档化的参数形态 parser 认不认」）。
+func TestFlagOrderDoesNotMatter(t *testing.T) {
+	p := mkFile(t, boxBytes("ftyp", []byte("isom")))
+	forms := [][]string{
+		{"audit", p, "--json"},
+		{"audit", "--json", p},
+		{"audit", p, "--modules", "M1"},
+		{"audit", "--modules", "M1", p},
+		{"audit", p, "--json", "--modules", "M1"},
+	}
+	for _, args := range forms {
+		code := runCaptured(t, args...)
+		// 骨架期模块未实现 → 3；关键是**不能**落进 "exactly one file path is required" 那条用法错误。
+		// （两者同为 3，所以另有一条正向断言在 TestParseInterspersedBelow。）
+		if code != policy.ExitUsage {
+			t.Errorf("%v exit=%d want %d", args, code, policy.ExitUsage)
+		}
+	}
+}
+
+// 直接测 parseInterspersed：位置参数与旗标任意交织都要被正确收集。
+func TestParseInterspersed(t *testing.T) {
+	cases := []struct {
+		args []string
+		want []string
+	}{
+		{[]string{"f.mp4", "--json"}, []string{"f.mp4"}},
+		{[]string{"--json", "f.mp4"}, []string{"f.mp4"}},
+		{[]string{"f.mp4"}, []string{"f.mp4"}},
+		{[]string{"--modules", "M1,M3", "f.mp4"}, []string{"f.mp4"}},
+		{[]string{"f.mp4", "--modules", "M1", "--json"}, []string{"f.mp4"}},
+		{[]string{"a", "b"}, []string{"a", "b"}},
+		{nil, nil},
+	}
+	for _, c := range cases {
+		opts := newAuditOpts(io.Discard)
+		got, err := parseInterspersed(opts.fs, c.args)
+		if err != nil {
+			t.Fatalf("%v: %v", c.args, err)
+		}
+		if len(got) != len(c.want) {
+			t.Fatalf("%v: got %v want %v", c.args, got, c.want)
+		}
+		for i := range got {
+			if got[i] != c.want[i] {
+				t.Fatalf("%v: got %v want %v", c.args, got, c.want)
+			}
+		}
+	}
+}
+
+func TestAuditRejectsTwoPositionalArgs(t *testing.T) {
+	p := mkFile(t, boxBytes("ftyp", []byte("isom")))
+	if code := runCaptured(t, "audit", p, p); code != policy.ExitUsage {
+		t.Fatalf("two paths exit=%d want %d", code, policy.ExitUsage)
+	}
+}
+
+// 阳性对照：证明上面那条测试不是空的。
+//
+// 用**朴素解析**（直接 fs.Parse，不交织）跑同一批 args，断言它确实把
+// `--json` 当成了位置参数——也就是说"如果实现退化成朴素解析，TestParseInterspersed
+// 一定会红"。没有这条对照，交错的测试可能只是碰巧通过（例如构造的 args 恰好都合法）。
+func TestNaiveParseWouldFailTheRegression(t *testing.T) {
+	naive := func(args []string) (pos []string, jsonSeen bool) {
+		opts := newAuditOpts(io.Discard)
+		if err := opts.fs.Parse(args); err != nil {
+			return nil, false
+		}
+		return opts.fs.Args(), *opts.asJSON
+	}
+	// 文档形态：文件在前、旗标在后 → 朴素解析把 --json 留在位置参数里
+	pos, jsonSeen := naive([]string{"f.mp4", "--json"})
+	if jsonSeen {
+		t.Fatal("positive control invalid: naive parse unexpectedly saw --json")
+	}
+	if len(pos) != 2 || pos[1] != "--json" {
+		t.Fatalf("positive control invalid: naive parse gave %v", pos)
+	}
+	// 而交错解析给出正确结果
+	opts := newAuditOpts(io.Discard)
+	got, err := parseInterspersed(opts.fs, []string{"f.mp4", "--json"})
+	if err != nil || len(got) != 1 || got[0] != "f.mp4" || !*opts.asJSON {
+		t.Fatalf("interspersed parse wrong: %v %v json=%v", got, err, *opts.asJSON)
+	}
+}

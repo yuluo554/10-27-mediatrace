@@ -1,0 +1,5 @@
+{
+  "note": "真实公开样本登记表。样本本体不入库（.gitignore 排除 *.mp4/*.mkv），只登记 sha256 + 来源 URL + 许可。verified 为 null = 尚未复跑（诚实标注，不得当通过）。格式与纪律见 plan/04 §六。",
+  "updated": "2026-10-27",
+  "samples": []
+}

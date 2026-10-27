@@ -1,0 +1,43 @@
+{
+  "generator": "fixture-gen",
+  "version": "0",
+  "seed": 20261027,
+  "cases": [
+    {
+      "case_id": "C1",
+      "suite": "defects",
+      "filename": "c1_dual_moov.mp4",
+      "sha256": "ccfa26e998ccd3a0dbb768b1413d335cb6ee421e736bed662831e58fc54ca4fe",
+      "size_bytes": 300,
+      "seed": 20261027,
+      "expected_findings": [
+        "duplicate_moov"
+      ],
+      "note": "复制整个 moov 盒插在第二处；期望 M1 duplicate_moov，报两处偏移"
+    },
+    {
+      "case_id": "C2",
+      "suite": "defects",
+      "filename": "c2_stco_out_of_mdat.mp4",
+      "sha256": "03b50577f916e714cb48f1cf20ba2311dce0d09207d6591985c6e4dcc04f6183",
+      "size_bytes": 360,
+      "seed": 20261027,
+      "expected_findings": [
+        "stco_out_of_mdat"
+      ],
+      "note": "单个 chunk offset 指向 mdat 载荷之外"
+    },
+    {
+      "case_id": "C3",
+      "suite": "defects",
+      "filename": "c3_truncated_mdat.mp4",
+      "sha256": "5fadc0f2fdee8a4f679fd93a04aad00742a97fd17dc05b78626618b0b40c29f0",
+      "size_bytes": 168,
+      "seed": 20261027,
+      "expected_findings": [
+        "truncated_mdat"
+      ],
+      "note": "声明 mdat size 大于实际剩余字节"
+    }
+  ]
+}

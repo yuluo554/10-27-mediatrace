@@ -105,8 +105,12 @@ dmypy.json
 .ipynb_checkpoints/
 
 # ---------- 本项目特有 ----------
-# fixture 生成器每次运行的临时落点（金样本/真值标签不在其中）
-fixtures/out/
+# fixture 生成器的落点：
+#   · 样本字节（*.mp4）不入库——可由 --seed 逐字节复现；
+#   · **manifest.json 必须入库**：它是真值台账（case_id/seed/sha256/expected），
+#     make check-fixtures 要拿它做双跑比对（plan/04 §二.4）。
+fixtures/out/*
+!fixtures/out/manifest.json
 fixtures/tmp/
 .tmp/
 
@@ -142,8 +146,10 @@ release/
 SHA256SUMS.local
 
 # 二进制/构建缓存
+# 注：只忽略**顶层** out/（`/out/`），不要写成 `out/`——后者会连
+# `fixtures/out/manifest.json`（**必须入库**的真值台账）一起忽略（本项目实测）。
 .cache/
-out/
+/out/
 
 # ---------- 编辑器与系统 ----------
 .vscode/
@@ -156,6 +162,8 @@ Thumbs.db
 desktop.ini
 
 # ---------- 本地私有 ----------
+# Mimosa 安全扫描/钩子状态（会话本地产物，绝不入库）
+.mimosa/
 _private/
 *.local
 *.log

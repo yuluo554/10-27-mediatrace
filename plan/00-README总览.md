@@ -1,10 +1,14 @@
 # 00 · README 总览 — 10-27-mediatrace（媒体时间轴语义审计）
 
+> 方法论：**`ai-tool-project-sprint`** ｜ 布局门：**`node tools/check-sprint-layout.mjs`**（另有 `node tools/check-desensitized.mjs`）｜ 装订日期：**2026-10-27**
+>
+> **新对话第一件事 = 跑布局门**（`node tools/tasks.mjs gates`；本机无 `make`）。门红先修布局，再干活；`AGENTS.md` 是仓库锚点。
+
 > 方法论：出题阶段 4（骨架期）｜续接对话第一件事 = 读本文档 **§五 里程碑表** 定位当前棒次（§六 是续接操作步骤）
 
 - **性质**：不参赛项目题 · 发布 GitHub **公开仓库** · 署名 yuluo554
 - **产出**：仓库 `10-27-mediatrace`，命令入口 `mediatrace`；**纯本地单二进制 CLI，只读字节、不解码、运行时不依赖 ffmpeg**
-- **状态**：**骨架期**（阶段 4 完成：`plan/00` + `plan/01` + `data/README.md` + `.gitignore` + 首提交）；M1–M6 未开工
+- **状态**：**骨架期**（阶段 0 装订 + `plan/00`–`06` + `data/README` + 代码骨架 + 两门 + CI 工作流已落盘；M1–M6 未开工）
 - **定位宣言**："ffprobe、MediaInfo、MP4Box、Bento4、mkvalidator 各给一份'我看到的样子'，彼此不对话；mediabunny 明知 `elst` 有它不支持的指令却只 `console.warn`；唯一做过策略判定的 MediaConch 已于 2021 停更，且只查格式合规不查同文件内部字段互相矛盾。**所有人都在'打印'，没有人在'判定'。**"
 - **基准日**：2026-10-27（代理实际检索窗口 **2026-10-27T10:56Z–11:22Z**；标签 `10-27` 是系列编号，不是检索日期）
 
@@ -14,20 +18,28 @@
 
 | 文档 | 内容 | 状态 |
 |---|---|---|
+| `AGENTS.md` | 仓库锚点：方法论 / 强制布局 / 门命令 / 环境事实 | ✅ 装订期 |
 | `plan/00-README总览.md` | 本文档：索引 / 决策记录 / 弃选项 / 承诺-证据台账 / 提交材料实物表 / 里程碑 | ✅ v1（骨架期） |
 | `plan/01-题目文档.md` | 十段式题目定稿（头部 / 介绍 / 需求证据 / 空白检索 / 任务 / 验收门槛 / 提交材料 / 评分 / 锚点 / 边界） | ✅ v1 |
-| `data/README.md` | 依据查证三态 + 技术事实核实台账 + 数据源可获取性 + 合成数据纪律 + **数值口径单一定义** | ✅ v1 |
-| `.gitignore` | Go/Python 标准模板 + 样本与构建产物排除 | ✅ v1 |
-| `plan/02-架构与技术选型.md` | 分层架构 / 盒子解析 IR / 依赖与单二进制度量 / 退出码 / 确定性纪律 | ⬜ 待 M1 开工前落盘 |
-| `plan/03-模块详设.md` | M1–M5 接口与测试点 + 跨模块门禁清单 | ⬜ 待 M2 |
-| `plan/04-数据计划.md` | 合成缺陷集 / 真实样本池 / fixture schema / 真值标签口径 | ⬜ 待 M4 |
-| `plan/05-里程碑与发布.md` | M1–M6 DoD / 出口门 / 依赖图 | ⬜ 待 M1 |
-| `plan/06-交付对标与决策.md` | 提交材料对照 / 评分对照 / 风险登记 | ⬜ 待 M5 |
+| `plan/02-架构与技术选型.md` | 分层架构 / 盒子解析 IR / 依赖与单二进制度量 / 退出码 / 确定性纪律 | ✅ v1（骨架期） |
+| `plan/03-模块详设.md` | M1–M5 接口与测试点 + 跨模块门禁清单 G1–G10 | ✅ v1（骨架期） |
+| `plan/04-数据计划.md` | 合成缺陷集 / 真实样本池 / fixture schema / 真值标签口径 | ✅ v1（骨架期） |
+| `plan/05-里程碑与发布.md` | M1–M6 DoD / 出口门 / 依赖图 / 已知未验证项 | ✅ v1（骨架期） |
+| `plan/06-交付对标与决策.md` | 提交材料对照 / 评分对照 / 缺口 / 风险登记 | ✅ v1（骨架期） |
 | `plan/RELEASE-M6.md` | 发布留档（tag 前事实 / tag 后追加两栏） | ⬜ 待 M6 |
-| `README.md`（仓库根） | 用户向：定位 / 快速开始 / 退出码 / 隐私 | ⬜ 待 M5 |
-| `docs/rules.md` | 每条规则的人类可读说明与反例 | ⬜ 待 M2 |
-| `docs/report-schema.md` | `pass/fail/gray` 三态 JSON 结构 + 首屏三段 + 退出码 | ⬜ 待 M5 |
-| `docs/fixture-pools.md` | 强制构造 C1–C7 的生成纪律（题面原文记作"六类"，实为 7 项） | ⬜ 待 M4 |
+| `README.md`（仓库根） | 用户向：定位 / 快速开始 / 退出码 / 隐私 | ✅ 骨架期（M5 定稿措辞） |
+| `LICENSE` | MIT | ✅ 骨架期 |
+| `data/README.md` | 依据查证三态 + 技术事实核实台账 + 数据源可获取性 + 合成数据纪律 + **数值口径单一定义** | ✅ v1 |
+| `data/real-samples.json` | 真实样本登记表（sha256 + URL + 许可；样本本体不入库） | 🟡 骨架期空表 |
+| `docs/rules.md` | 每条规则的人类可读说明与反例 | ✅ 骨架期（规则 ID 齐，实现待 M2–M5） |
+| `docs/report-schema.md` | `pass/fail/gray` 三态 JSON 结构 + 首屏三段 + 退出码 | ✅ 骨架期 |
+| `docs/fixture-pools.md` | 强制构造 C1–C7 的生成纪律 | ✅ 骨架期（C1–C3 构造器已实现，判定待 M2） |
+| `tools/check-sprint-layout.mjs` | 布局门（10 条判据） | ✅ 骨架期 |
+| `tools/check-desensitized.mjs` | 脱敏门（4 条规则） | ✅ 骨架期 |
+| `tools/verify-layout-gate.mjs` | 两门自己的变异验证（19 组，每组必按预期变红） | ✅ 骨架期 |
+| `tools/tasks.mjs` | **跨平台任务入口**（本机无 `make`；`Makefile` 只是薄委托） | ✅ 骨架期 |
+| `fixtures/out/manifest.json` | 夹具真值台账（样本字节不入库，manifest 入库） | ✅ C1–C3 构造器 |
+| `.github/workflows/ci.yml` | CI：layout / test 矩阵 / fixtures / cross | ✅ 骨架期（**未首推**） |
 
 > 状态图例：✅ 已落盘 · 🟡 进行中 · ⬜ 待做。**状态列必须与里程碑同步翻转（同一提交里改）。**
 
@@ -98,13 +110,13 @@
 
 | 承诺项 | 应存在的文件路径 | 由哪个里程碑产出 | 用哪条命令核对 |
 |---|---|---|---|
-| 单二进制 CLI 入口 | `cmd/mediatrace/main.go`（或等价单入口）+ `Makefile` | M2 | `git ls-files cmd/ Makefile`；`make bin && bin/mediatrace --version` |
+| 单二进制 CLI 入口 | `cmd/mediatrace/main.go` + `Makefile`（委托 `tools/tasks.mjs`） | M2 | `git ls-files cmd/ Makefile tools/tasks.mjs`；`node tools/tasks.mjs bin` |
 | 盒子解析核心（迭代遍历 + IR） | `internal/isobmff/` | M2 | `git ls-files internal/isobmff/` |
 | M1 结构规则 | `internal/rules/structure/` | M2 | `git ls-files internal/rules/structure/`；`mediatrace audit X --modules M1` |
 | M2 时长口径规则 | `internal/rules/duration/` | M3 | `git ls-files internal/rules/duration/` |
 | M3 时间戳规则 | `internal/rules/timestamps/` | M4 | `git ls-files internal/rules/timestamps/` |
 | M4 偏移/priming 规则 + M5 显示与色彩规则 | `internal/rules/offset/`、`internal/rules/display/` | M5 | `git ls-files internal/rules/` |
-| fixture 生成器（C1–C7 强制构造） | `tools/fixture-gen/` | M4 | `git ls-files tools/fixture-gen/`；`make fixtures && sha256sum` 复现 |
+| fixture 生成器（C1–C7 强制构造） | `tools/fixture-gen/` | M4 | `git ls-files tools/fixture-gen/`；`node tools/tasks.mjs fixtures` → 复算 sha256 与 manifest 比对 |
 | 报告渲染（JSON + Markdown 同源） | `internal/report/` | M5 | `git ls-files internal/report/`；`mediatrace audit X --json` |
 | 报告格式文档 | `docs/report-schema.md` | M5 | `git ls-files docs/report-schema.md` |
 | 规则表（人类可读 + 反例） | `docs/rules.md` | M2 | `git ls-files docs/rules.md` |

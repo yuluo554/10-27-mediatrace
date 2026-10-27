@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # 门单独一个 job：失败要一眼看到，不被测试日志淹没。
+  layout:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: 布局门
+        run: node tools/check-sprint-layout.mjs
+      - name: 脱敏门
+        run: node tools/check-desensitized.mjs
+      - name: 门自己的变异验证
+        run: node tools/verify-layout-gate.mjs
+      - name: gitignore 三态核对（台账入库 / 样本与产物不入库）
+        run: node tools/tasks.mjs check-ignore-rules
+      - name: 必备件必须在 git 索引里（不是只存在于工作区）
+        run: |
+          set -euo pipefail
+          for p in AGENTS.md README.md LICENSE Makefile go.mod \
+                   plan/00-README总览.md plan/05-里程碑与发布.md plan/06-交付对标与决策.md \
+                   data/README.md docs/report-schema.md docs/rules.md docs/fixture-pools.md \
+                   cmd/mediatrace/main.go internal/policy/policy.go internal/report/report.go \
+                   internal/isobmff/box.go tools/fixture-gen/main.go \
+                   tools/fixture-gen/gen/gen.go \
+                   tools/check-sprint-layout.mjs tools/check-desensitized.mjs \
+                   tools/verify-layout-gate.mjs tools/tasks.mjs \
+                   fixtures/out/manifest.json data/real-samples.json \
+                   .github/workflows/ci.yml; do
+            git ls-files --error-unmatch "$p" >/dev/null || { echo "not tracked: $p"; exit 1; }
+          done
+          echo "all required files tracked"
+      - name: 本地状态不入库
+        run: |
+          set -euo pipefail
+          if git ls-files | grep -qE '^(\.mimosa/|bin/|fixtures/out/|dist/)'; then
+            echo "local state/artifacts are tracked"; git ls-files | grep -E '^(\.mimosa/|bin/|fixtures/out/|dist/)'; exit 1
+          fi
+          if git ls-files | grep -qE '\.(mp4|mkv|mov|m4a)$'; then
+            echo "media samples are tracked"; exit 1
+          fi
+          echo "no local state or media in index"
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+          cache: false
+      - name: build
+        run: go build ./...
+      - name: vet
+        run: go vet ./...
+      - name: test
+        run: go test ./... -count=1
+
+  fixtures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+          cache: false
+      - name: generate twice and compare byte-for-byte
+        run: |
+          set -euo pipefail
+          go run ./tools/fixture-gen -out /tmp/fx1 -seed 20261027 -suite all
+          go run ./tools/fixture-gen -out /tmp/fx2 -seed 20261027 -suite all
+          diff -r /tmp/fx1 /tmp/fx2
+          echo "double-run byte-identical"
+      - name: committed manifest matches (when present)
+        run: |
+          set -euo pipefail
+          if [ -f fixtures/out/manifest.json ]; then
+            go run ./tools/fixture-gen -out fixtures/out -seed 20261027 -suite all -check
+          else
+            echo "SKIP: no committed manifest yet (skeleton stage)"
+          fi
+
+  cross:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+          cache: false
+      - name: cross-compile three targets
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          GOOS=linux GOARCH=amd64 go build -trimpath -o dist/mediatrace-linux-amd64 ./cmd/mediatrace
+          GOOS=darwin GOARCH=arm64 go build -trimpath -o dist/mediatrace-darwin-arm64 ./cmd/mediatrace
+          GOOS=windows GOARCH=amd64 go build -trimpath -o dist/mediatrace-windows-amd64.exe ./cmd/mediatrace
+          ls -l dist
+      - name: binary runs without ffmpeg on PATH
+        run: |
+          set -euo pipefail
+          if command -v ffmpeg >/dev/null; then echo "ffmpeg unexpectedly present"; exit 1; fi
+          ./dist/mediatrace-linux-amd64 --version
