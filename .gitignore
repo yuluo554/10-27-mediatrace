@@ -1,0 +1,161 @@
+# ============================================================
+# 10-27-mediatrace · .gitignore
+# Go + Python 标准模板 + 本项目特有排除项
+#   · bin/          —— 单二进制构建产物（不入库，入库的是源码与构建脚本）
+#   · fixtures/out/ —— fixture 生成器每次运行的落点
+#   · *.mp4 / *.mkv —— 媒体样本一律不入库（只登记 sha256 + 来源 + 许可）
+# ============================================================
+
+# ---------- Go ----------
+# 编译产物与可执行文件
+bin/
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+*.a
+*.o
+*.obj
+
+# Go 工作区与依赖
+vendor/
+go.work.sum
+# 注：go.sum 必须入库（可复现构建），故不忽略
+
+# 覆盖率与性能剖析
+*.cover
+*.coverprofile
+coverage.out
+coverage.html
+cpu.prof
+mem.prof
+block.prof
+mutex.prof
+trace.out
+
+# Go 生成物（生成源码不入库，生成规则随生成器入库）
+*.gen.go
+
+# ---------- Python（fixture 生成器与工具脚本） ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
+
+# 虚拟环境
+.venv/
+venv/
+ENV/
+env/
+.env
+.env.*
+!.env.example
+
+# 测试与覆盖率
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+nosetests.xml
+
+# 类型检查与 lint 缓存
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+.pytype/
+.pyre/
+.pyright/
+
+# PyInstaller
+*.manifest
+*.spec
+!packaging/*.spec
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ---------- 本项目特有 ----------
+# fixture 生成器每次运行的临时落点（金样本/真值标签不在其中）
+fixtures/out/
+fixtures/tmp/
+.tmp/
+
+# 媒体样本：一律不入库（体积大、可能含真实内容、许可需逐条登记）
+*.mp4
+*.m4v
+*.m4a
+*.mov
+*.mkv
+*.webm
+*.ts
+*.m2ts
+*.flv
+*.avi
+*.wav
+*.aac
+
+# 例外：夹具若有极小的、可程序化复现的"种子字节"需要入库，
+# 请放在 fixtures/seeds/ 并用 .gitkeep 保留目录；样本本体仍不入库。
+!fixtures/seeds/.gitkeep
+
+# 审计报告与运行产物（可能含真实文件名/路径）
+runs/
+reports/
+*.report.json
+*.report.md
+
+# 发布产物
+release/
+*.zip
+*.tar.gz
+!docs/**/*.zip
+SHA256SUMS.local
+
+# 二进制/构建缓存
+.cache/
+out/
+
+# ---------- 编辑器与系统 ----------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- 本地私有 ----------
+_private/
+*.local
+*.log
