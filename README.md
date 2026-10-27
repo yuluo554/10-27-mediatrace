@@ -20,29 +20,33 @@
 | 里程碑 | 内容 | 状态 |
 | --- | --- | --- |
 | **M1** | 数据先行（C1–C7 夹具 + 真值） | ✅ 已完成 |
-| **M2** | 结构判定（模块 M1） | ⬜ 未开工 |
+| **M2** | 结构判定（模块 M1） | ✅ 已完成 |
 | **M3** | 时长口径判定（模块 M2） | ⬜ 未开工 |
 | **M4** | 时间戳判定（模块 M3） | ⬜ 未开工 |
 | **M5** | 偏移与显示判定（模块 M4+M5）+ 报告 | ⬜ 未开工 |
 | **M6** | 发布（tag + Release + 留档） | ⬜ 未开工 |
 
-> **当前进度**：骨架期已就位（目录、接口、三态模型、两个门、CI 工作流），
-> **M1 数据先行已收尾**（C1–C7 夹具 92 例 + 真实样本登记 22 条）；
-> 五个判定模块尚未实现（`--modules` 会明确返回退出码 3，**不冒充 PASS**）。
+> **当前进度**：**M1 数据先行 + M2 结构判定已收尾**。模块 **M1（结构自洽）已实现**
+> ——`mediatrace audit <file> --modules M1` 给出真实结论（`duplicate_moov` / `stco_out_of_mdat` /
+> `truncated_mdat` / `child_overruns_parent` / `duplicate_mdat` / `max_depth_exceeded` 等
+> 八条规则，每条 fail 带四元组证据）；对 92 例合成夹具**召回精确、对照组误报 0**。
+> 模块 M2–M5（时长/时间戳/偏移/显示）尚未实现（`--modules` 对它们明确返回退出码 3，**不冒充 PASS**）。
 > 计划与口径见 `plan/`，续接入口是 `plan/00-README总览.md`。
 
-## 快速开始（骨架期可用部分）
+## 快速开始
 
 ```bash
 # 任务入口用 node（本机可能没有 make；Makefile 只是它的薄委托）
 node tools/tasks.mjs gates          # 两个门：布局 + 脱敏
-node tools/tasks.mjs test           # go vet + go test
+node tools/tasks.mjs test           # go vet + go test（含"整夹具集跑 M1"的对账测试）
 node tools/tasks.mjs bin            # 构建 bin/mediatrace
-node tools/tasks.mjs fixtures       # 生成夹具（M1：92 例，C1–C7 + 三组对照）
+node tools/tasks.mjs fixtures       # 生成夹具（92 例，C1–C7 + 三组对照）
 node tools/tasks.mjs check-fixtures # 双跑逐字节比对
 node tools/tasks.mjs all            # 以上一键跑
 
 bin/mediatrace --version
+# 结构判定（模块 M1 已实现）：
+bin/mediatrace audit fixtures/out/c2_stco_out_of_mdat.mp4 --modules M1
 ```
 
 > Go 不在 `PATH` 时：`GO=/path/to/go node tools/tasks.mjs test`。

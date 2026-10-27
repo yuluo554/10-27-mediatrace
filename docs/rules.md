@@ -1,7 +1,9 @@
 # 规则表（人类可读 + 反例）
 
-> 状态：**骨架期**（M2 起逐模块补齐）。规则 ID 与 `internal/rules` 实现一一对应。
+> 状态：**M2 已实现模块 M1（结构自洽）**；M2–M5（时长/时间戳/偏移/显示）的规则 ID 已定名，
+> 实现待 M3–M5。规则 ID 与 `internal/rules/` 实现一一对应。
 > 口径数字只在 `data/README.md §5`；本文只写"规则在判什么、什么不算违规"。
+> 本节的反例样本 id 一律指向 `fixtures/out/manifest.json` 里的 `case_id`。
 
 ---
 
@@ -27,18 +29,29 @@
 
 ## M1 · 结构自洽
 
-| RuleID | 判什么 | 反例（不算违规） |
-|---|---|---|
-| `too_small_size` | `size` < 8 且非 0/1 形态 | `size==0`（到文件尾）、`size==1`（largesize） |
-| `child_overruns_parent` | 子盒区间 ⊄ 父盒载荷 | 子盒恰好等于父载荷 |
-| `duplicate_moov` | `moov` ≥2 次 | 单个 `moov` + 多个 `moof`（分片合法） |
-| `duplicate_mdat` | `mdat` ≥2 次 | — |
-| `stco_out_of_mdat` | 偏移 + 长度 ⊄ 任一 `mdat` 载荷 | 指向另一 `mdat`（多 mdat 合法） |
-| `truncated_mdat` | 声明 size > 可读字节 | `size==0` 的"到文件尾"形态 |
-| `ftyp_brand_mismatch` | brand 与实际编码矛盾 | `iso2` + `mp41` 这类兼容组合 |
-| `max_depth_exceeded` | 深度超限（防御） | 正常 4–6 层 |
+实现：`internal/rules/structure/`（模块号 `M1`）+ `internal/isobmff/`（迭代遍历 IR）。
+遍历**迭代不递归**，深盒树（≥5000 层）在 `MaxDepth` 处停止展开并记一条异常——不爆栈、不 panic。
 
-**反例说明**：`stco` 指向文件尾之外才算越界；指向 `moov` 区间**也**算越界（不是 mdat）。
+| RuleID | 判什么 | 证据（四元组要点） | 反例（不算违规） | 反例样本 id |
+|---|---|---|---|---|
+| `too_small_size` | 盒 `size` < 8（最小盒头） | 盒偏移 + 声明 size；`delta` = 8 − size 的短缺字节 | `size==0`（到文件尾）、`size==1`（largesize）两形态合法 | `K3-mdat`、`K3b-largesize` |
+| `child_overruns_parent` | 子盒区间 ⊄ 父盒载荷区间 | 子盒偏移 + 子盒结束 + 父盒载荷结束；`delta` = 越界字节 | 子盒恰好等于父载荷 | `S1`（反例 `K1-moov`） |
+| `duplicate_moov` | `moov` 出现 ≥2 次 | **列出全部**偏移；首证据指向第 2 处 | 单个 `moov` + 多个 `moof`（分片合法） | `C1`、`C1b`（反例 `K1-moov`、`K9-frag`） |
+| `duplicate_mdat` | 非分片文件 `mdat` ≥2 次 | 列出全部偏移；首证据指向第 2 处 | **含 `moof` 的分片文件每片自带 `mdat`，合法** | `S2`（反例 `K9-frag`） |
+| `stco_out_of_mdat` | `stco`/`co64` 偏移 + `stsz` 长度 ⊄ 任一 `mdat` 载荷 | `stco` 条目号 + 目标区间 vs `mdat` 区间 + 文件大小 | 指向**任一** `mdat` 载荷内（多 `mdat` 合法）；被尾部截断亦算越界 | `C2`、`C2b`、`C2c`、`C2d`（反例 `K2-stco`、`K14-co64`） |
+| `truncated_mdat` | 顶层 `mdat` 声明 size > 实际可读字节 | `mdat` 偏移 + 声明 vs 可读 | `size==0` 的"到文件尾"形态 | `C3`、`C3b`（反例 `K3-mdat`） |
+| `ftyp_brand_mismatch` | 以编码命名的 major brand 与 `stsd` 样本条目矛盾 | `ftyp` 偏移 + brand(fourcc) vs 实际编码(fourcc) | 通用 brand（`isom`/`iso2`/`mp41`/`qt`…）不与任何编码冲突 | 无夹具（单测覆盖）；见 `internal/rules/structure/structure_test.go` |
+| `max_depth_exceeded` | 嵌套深度到达上限，更深子盒未展开（防御） | 盒偏移 + 深度上限 vs 实际深度 | 正常 4–6 层；单测 6000 层不 panic | `S3`（反例 `K1-moov`） |
+
+**纪律与合并**（`plan/03 §1.3`）：
+
+- **同一根因合并**：越界子盒只报 `child_overruns_parent` **一条**，其子树不再逐条报；
+  重复 `moov` 时偏移表已不可信，**跳过** `stco_out_of_mdat` 区间校验（只报 `duplicate_moov`）。
+- **`stco` 越界的两种形态**：指向文件尾之外、或被 `mdat` 尾部截断；指向 `moov` 区间**同样**算越界。
+- **`ftyp_brand_mismatch` 取窄口径**：只在 major brand **就是编码名**（`avc1`/`hvc1`/`hev1`/`av01`/`vp09`/`mp4v`）
+  且与 `stsd` 条目矛盾时报——避免把"`isom` 容器装 `hvc1` 轨"这类**合法**组合误伤（对照组误报 0 是门禁）。
+- **对照组误报 0**：`controls` / `m3-regression` / `m4` / `m5` 四组共 60 例在模块 M1 下**一条 fail 都不许有**，
+  由 `cmd/mediatrace` 的 `TestM1MatchesFixtureTruth` 对整个夹具集**集合相等**断言（既抓漏报也抓多报）。
 
 ---
 

@@ -27,20 +27,21 @@
 | `plan/05-里程碑与发布.md` | M1–M6 DoD / 出口门 / 依赖图 / 已知未验证项 | ✅ v1（骨架期） |
 | `plan/06-交付对标与决策.md` | 提交材料对照 / 评分对照 / 缺口 / 风险登记 | ✅ v1（骨架期） |
 | `plan/HANDOFF-M1.md` | **交给第 1 棒（M1 数据先行）的入口交接单**（七节：进度+证据 / 当前事实·状态不变量 F1–F10 / 待办 / K1–K10 / 环境坑 E1–E6 / DoD / 命令速查）；**M1 收尾已补 DoD 结果** | ✅ M1 |
-| `plan/HANDOFF-M2.md` | **交给第 2 棒（M2 结构判定）的入口交接单**（七节齐） | ✅ M1 收尾时写 |
+| `plan/HANDOFF-M2.md` | **交给第 2 棒（M2 结构判定）的入口交接单**（七节齐）；**M2 收尾已补 DoD 结果** | ✅ M2 |
+| `plan/HANDOFF-M3.md` | **交给第 3 棒（M3 时长口径判定）的入口交接单**（七节齐） | ✅ M2 收尾时写 |
 | `plan/RELEASE-M6.md` | 发布留档（tag 前事实 / tag 后追加两栏） | ⬜ 待 M6 |
 | `README.md`（仓库根） | 用户向：定位 / 快速开始 / 退出码 / 隐私 | ✅ 骨架期（M5 定稿措辞） |
 | `LICENSE` | MIT | ✅ 骨架期 |
 | `data/README.md` | 依据查证三态 + 技术事实核实台账 + 数据源可获取性 + 合成数据纪律 + **数值口径单一定义** | ✅ v1 |
 | `data/real-samples.json` | 真实样本登记表（sha256 + URL + 许可；样本本体不入库） | ✅ M1（22 条，全部 `verified: null`） |
-| `docs/rules.md` | 每条规则的人类可读说明与反例 | ✅ 骨架期（规则 ID 齐，实现待 M2–M5） |
+| `docs/rules.md` | 每条规则的人类可读说明与反例 | ✅ M2 起逐模块补齐（结构规则说明 + 反例样本 id 已落） |
 | `docs/report-schema.md` | `pass/fail/gray` 三态 JSON 结构 + 首屏三段 + 退出码 | ✅ 骨架期 |
 | `docs/fixture-pools.md` | 强制构造 C1–C7 的生成纪律 | ✅ M1（C1–C7 构造器全实现 + 三组对照；判定待 M2–M5） |
 | `tools/check-sprint-layout.mjs` | 布局门（11 条判据） | ✅ 骨架期 |
 | `tools/check-desensitized.mjs` | 脱敏门（4 条规则） | ✅ 骨架期 |
 | `tools/verify-layout-gate.mjs` | 两门自己的变异验证（21 组，每组必按预期变红） | ✅ 骨架期 |
 | `tools/tasks.mjs` | **跨平台任务入口**（本机无 `make`；`Makefile` 只是薄委托） | ✅ 骨架期 |
-| `fixtures/out/manifest.json` | 夹具真值台账（样本字节不入库，manifest 入库） | ✅ M1（92 例：defects 32 / controls 16 / m3-regression 24 / m4 10 / m5 10） |
+| `fixtures/out/manifest.json` | 夹具真值台账（样本字节不入库，manifest 入库） | ✅ M1（92 例：defects 32 / controls 16 / m3-regression 24 / m4 10 / m5 10；结构判定已对账） |
 | `.github/workflows/ci.yml` | CI：layout / test 矩阵 / fixtures / cross | ✅ 骨架期（**未首推**） |
 
 > 状态图例：✅ 已落盘 · 🟡 进行中 · ⬜ 待做。**状态列必须与里程碑同步翻转（同一提交里改）。**
@@ -85,10 +86,10 @@
 
 | 承诺项 | 素材来源 | 交付物内可达性 | 核验方式 | 状态 |
 |---|---|---|---|---|
-| 单二进制 CLI，运行时不依赖 ffmpeg | 设计 D3 | 纯本地，无外部进程 | `bin/mediatrace --version`；依赖检查（`ldd`/`otool -L` 无 libav*），`PATH` 中移除 ffmpeg 后仍可审计 | ⬜ M2 |
-| 盒子树迭代遍历（不递归），`size==1`/`size==0` 展开正确 | ISO BMFF 布局（`plan/01` 锚点 1/3/7） | 纯本地 | 深盒树样本不爆栈；三例 M1 验收 3/3、误报 0 | ⬜ M2 |
-| 双 `moov` = fail（不取首/末了事） | 设计 D1/M1 | 纯本地 | 合成"双 moov"必命中；报告列出两处偏移 | ⬜ M2 |
-| `stco+stsz` 累计区间 ⊆ `mdat` | 设计 M1 | 纯本地 | "stco 越界" / "截断 mdat" 两例命中 | ⬜ M2 |
+| 单二进制 CLI，运行时不依赖 ffmpeg | 设计 D3 | 纯本地，无外部进程 | `bin/mediatrace --version`（实测）；零三方依赖 + `internal/`/`cmd/` 零 `net` import（`archtest` G7/G8 常驻断言）→ 判定路径不调用 ffmpeg、不链接 `libav*` | ✅ M2 |
+| 盒子树迭代遍历（不递归），`size==1`/`size==0` 展开正确 | ISO BMFF 布局（`plan/01` 锚点 1/3/7） | 纯本地 | 深盒树（6000 层）不爆栈单测；三例 M1 验收 3/3、整夹具集**集合相等**（对照 60 例误报 0） | ✅ M2 |
+| 双 `moov` = fail（不取首/末了事） | 设计 D1/M1 | 纯本地 | 合成"双 moov"必命中；报告列出两处偏移（`C1`/`C1b`） | ✅ M2 |
+| `stco+stsz` 累计区间 ⊆ `mdat` | 设计 M1 | 纯本地 | "stco 越界"（`C2`–`C2d`）/"截断 mdat"（`C3`/`C3b`）逐例命中 | ✅ M2 |
 | 三口径时长互比（`stts` / `mvhd`+`tkhd` / `Σelst`）容差 1 tick | `data/README §5` | 纯本地 | S1 类"copy 前后差"复现；差 2× 样本（S7 类）命中 | ⬜ M3 |
 | `elst` 条目按序编号，`media_rate≠1` 定位到条目号 | 决策 D10；mediabunny #494 原话 | 纯本地 | GPAC `-edits` 造 3 段（含 `media_rate≠1`）逐条定位 | ⬜ M3 |
 | DTS 单调 + 位宽溢出前兆判定 | S5 / S10 / S4 | 纯本地 | "回退 DTS"合成例命中并给样本序号；≥20 正常 H.264/H.265 文件误报 0 | ⬜ M4 |
@@ -137,7 +138,7 @@
 | 阶段 | 内容 | 对应模块 | DoD（完成判据） | 状态 |
 |---|---|---|---|---|
 | **M1 · 数据先行** | **先造真值，再写判定**：用 `ffmpeg -itsoffset` / `-copyts` 与 GPAC `-edits` 程序化生成**已知缺陷**文件，逐例登记真值标签；落 `tools/fixture-gen/` 与 `docs/fixture-pools.md` | 无（前置） | 强制构造类（题面原文记作"六类"，`data/README §4` 实列 **C1–C7 共 7 项**：双 `moov` / `stco` 越界 / 截断 `mdat` / 时长口径互斥（题面记作"负 duration"，实为 C4a/C4b 两态，**不能写负数字段**）/ 回退 DTS / 1024 samples 延迟 / `matrix=90` 无 `pasp`）各有 ≥1 个可复现样本；同 seed 逐字节一致；**ffmpeg 只在 CI/生成期使用**，交付二进制零依赖 | ✅ |
-| **M2 · 结构判定** | 盒子树迭代遍历 IR + 模块 M1 全部规则（`size` 展开、子盒越界、`moov`/`mdat` 唯一、`stco+stsz ⊆ mdat`、`ftyp` 品牌一致）+ MKV EBML 结构对应项 | 模块 M1 | 三例（双 moov / stco 越界 / 截断 mdat）命中 **3/3**、误报 **0**；深盒树不爆栈；每 fail 带偏移 | ⬜ |
+| **M2 · 结构判定** | 盒子树迭代遍历 IR + 模块 M1 全部规则（`size` 展开、子盒越界、`moov`/`mdat` 唯一、`stco+stsz ⊆ mdat`、`ftyp` 品牌一致）；MKV EBML 结构对应项顺延（首期夹具与生成器均为 MP4，见 `plan/06 §三` 缺口行） | 模块 M1 | 三例（双 moov / stco 越界 / 截断 mdat）命中 **3/3**、误报 **0**；深盒树不爆栈；每 fail 带偏移 | ✅ |
 | **M3 · 时长口径判定** | 模块 M2：三口径互比（1 tick 容差）、`elst` 按序编号、`media_time` 与首帧 PTS、空 edit 语义、`media_rate≠1` 报条目号 | 模块 M2 | GPAC 造 3 段 `elst` 逐条定位；S1 类"copy 前后差"可复现；S7 类 2× 时长命中 | ⬜ |
 | **M4 · 时间戳判定** | 模块 M3：DTS 单调、`ctts`→PTS、位宽溢出前兆、timescale 白名单/极小值、VFR 落 gray | 模块 M3 | "回退 DTS"命中并给样本序号；**≥20 正常 H.264/H.265 文件误报 0** | ⬜ |
 | **M5 · 偏移与显示判定** | 模块 M4（priming/encoder delay、起始裁剪）+ 模块 M5（matrix 正交性、呈现宽高、SAR、`colr`/`mdcv`/`clli` 量程与互斥）+ 报告三态与首屏三段 + 退出码 | 模块 M4 + M5 | "1024 晚"报出 1024；正反例各 5 个；matrix=±90 命中且正常竖屏不报；`gray` 可导出且不计 fail；同输入逐字节一致 | ⬜ |
@@ -152,7 +153,7 @@
 ## 六、续接入口
 
 1. 读本文档 §五，找第一个 `⬜` 的阶段 → 该阶段即当前棒次。
-2. **读该棒的入口交接单** `plan/HANDOFF-M<k>.md`（当前是 `plan/HANDOFF-M1.md`）——
+2. **读该棒的入口交接单** `plan/HANDOFF-M<k>.md`（当前是 `plan/HANDOFF-M3.md`）——
    它的 §二「当前事实·状态不变量」是"不读就会踩"的清单，§四 是 K 口径清单。
 3. 读 `plan/01` 对应模块的"输入/输出/验收/确定性纪律"四栏。
 4. 一切数值口径（容差、阈值、白名单、退出码）**只查 `data/README.md §5`**，不要在其它文档里找第二份。

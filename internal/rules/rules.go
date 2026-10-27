@@ -11,6 +11,7 @@ import (
 
 	"github.com/yuluo554/mediatrace/internal/isobmff"
 	"github.com/yuluo554/mediatrace/internal/report"
+	"github.com/yuluo554/mediatrace/internal/rules/structure"
 )
 
 // ErrNotImplemented 表示该模块在骨架期尚未实现。
@@ -38,7 +39,7 @@ type Module interface {
 // registry 是模块注册表；顺序即 CLI 的默认执行顺序。
 // 新增模块必须同时改 plan/00 §五 的映射表与 docs/rules.md。
 var registry = []Module{
-	m1{}, // 结构自洽
+	m1{}, // 结构自洽（M2 已实现 → internal/rules/structure）
 	m2{}, // 时长口径
 	m3{}, // 时间戳
 	m4{}, // 偏移 / priming
@@ -72,14 +73,18 @@ func ByIDs(ids []string) ([]Module, error) {
 	return out, nil
 }
 
-// ── 骨架期模块桩 ─────────────────────────────────────────────────────────
-// 每个桩只声明 ID；Audit 返回 ErrNotImplemented。
-// 实现时替换对应文件（plan/03 §二–§六），**不得**在这里返回空 findings 冒充 PASS。
+// ── 模块实现 ─────────────────────────────────────────────────────────────
+// m1（结构自洽）已实现，转调 internal/rules/structure（模块间不互相 import；
+// structure 只依赖 isobmff/report/policy，故此处单向依赖无环）。
+// m2–m5 仍是桩：Audit 返回 ErrNotImplemented，**不得**改成"返回空 findings"冒充 PASS。
 
 type m1 struct{}
 
-func (m1) ID() string                            { return "M1" }
-func (m1) Audit(Input) ([]report.Finding, error) { return nil, ErrNotImplemented }
+func (m1) ID() string { return structure.ModuleID }
+
+func (m1) Audit(in Input) ([]report.Finding, error) {
+	return structure.Audit(in.Root, in.Raw, in.FileName)
+}
 
 type m2 struct{}
 

@@ -64,9 +64,12 @@ func TestAuditMissingFileIsUsageError(t *testing.T) {
 }
 
 func TestAuditUnparsableFileIsUsageError(t *testing.T) {
-	p := mkFile(t, []byte{0, 0, 0, 4, 'f', 'r', 'e', 'e'}) // size < header
+	// 连根盒头都读不出（< 8 字节）→ 树无法建立 → 退出码 3。
+	// 注意：size<8 的**完整盒头**不是 parse error，而是结构 finding（too_small_size），
+	// 见 internal/isobmff 与 internal/rules/structure。
+	p := mkFile(t, []byte{0, 0, 0})
 	if code := runCaptured(t, "audit", p); code != policy.ExitUsage {
-		t.Fatalf("bad box exit=%d, want %d (parse error is NOT gray)", code, policy.ExitUsage)
+		t.Fatalf("truncated header exit=%d, want %d (parse error is NOT gray)", code, policy.ExitUsage)
 	}
 }
 
@@ -105,21 +108,28 @@ func TestAuditDoesNotModifyInput(t *testing.T) {
 
 // 文档写的形态必须能被 parser 接受：`audit <file> --json` 与 `audit --json <file>`。
 // 这是发布包实测里最贵的一族（skill：「文档化的参数形态 parser 认不认」）。
+//
+// M2 起模块 M1 已实现：`--modules M1` 对合法样本给出真实结论（pass → 0），
+// 而**默认全集**仍因 M2–M5 未实现而落 3。两条路径分别断言，正是为了区分
+// "参数形态没被认出来"（也会是 3）与"模块未实现的 3"。
 func TestFlagOrderDoesNotMatter(t *testing.T) {
 	p := mkFile(t, boxBytes("ftyp", []byte("isom")))
-	forms := [][]string{
-		{"audit", p, "--json"},
-		{"audit", "--json", p},
-		{"audit", p, "--modules", "M1"},
-		{"audit", "--modules", "M1", p},
-		{"audit", p, "--json", "--modules", "M1"},
+	cases := []struct {
+		args []string
+		want int
+	}{
+		// 全集：M1 已实现并判 pass，但 M2–M5 是桩 → 3（未实现，不冒充 PASS）
+		{[]string{"audit", p, "--json"}, policy.ExitUsage},
+		{[]string{"audit", "--json", p}, policy.ExitUsage},
+		// 只跑 M1：合法的"只有 ftyp"文件结构无异常 → pass(0)
+		{[]string{"audit", p, "--modules", "M1"}, policy.ExitPass},
+		{[]string{"audit", "--modules", "M1", p}, policy.ExitPass},
+		{[]string{"audit", p, "--json", "--modules", "M1"}, policy.ExitPass},
 	}
-	for _, args := range forms {
-		code := runCaptured(t, args...)
-		// 骨架期模块未实现 → 3；关键是**不能**落进 "exactly one file path is required" 那条用法错误。
-		// （两者同为 3，所以另有一条正向断言在 TestParseInterspersedBelow。）
-		if code != policy.ExitUsage {
-			t.Errorf("%v exit=%d want %d", args, code, policy.ExitUsage)
+	for _, c := range cases {
+		code := runCaptured(t, c.args...)
+		if code != c.want {
+			t.Errorf("%v exit=%d want %d", c.args, code, c.want)
 		}
 	}
 }

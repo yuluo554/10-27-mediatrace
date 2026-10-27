@@ -33,7 +33,8 @@ func main() {
 }
 
 // run 是可测试的入口（进程级退出码测试与单元测试共用）。
-func run(args []string, stdout, stderr *os.File) int {
+// stdout/stderr 用 io.Writer，便于测试捕获输出（注入 bytes.Buffer）。
+func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
 		usage(stderr)
 		return policy.ExitUsage
@@ -54,7 +55,7 @@ func run(args []string, stdout, stderr *os.File) int {
 	}
 }
 
-func usage(w *os.File) {
+func usage(w io.Writer) {
 	fmt.Fprint(w, `mediatrace — 媒体时间轴语义审计（只读字节、不解码、零网络）
 
 Usage:
@@ -87,7 +88,7 @@ func newAuditOpts(output io.Writer) *auditOpts {
 	}
 }
 
-func runAudit(args []string, stdout, stderr *os.File) int {
+func runAudit(args []string, stdout, stderr io.Writer) int {
 	opts := newAuditOpts(stderr)
 	fs, asJSON, modules := opts.fs, opts.asJSON, opts.modules
 

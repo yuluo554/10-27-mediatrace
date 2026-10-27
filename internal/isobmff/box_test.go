@@ -76,18 +76,32 @@ func TestParseLargesize(t *testing.T) {
 	}
 }
 
-func TestParseRejectsTooSmallSize(t *testing.T) {
+// size<8 不是"树无法建立"，而是**内容级结构异常**：记成 Anomaly 交给规则层，
+// 不硬失败（M2 起 `too_small_size` 是 finding，不是退出码 3）。
+func TestParseRecordsTooSmallSize(t *testing.T) {
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint32(buf[0:4], 4) // < 8
 	copy(buf[4:8], "free")
-	if _, err := Parse(buf); err == nil {
-		t.Fatal("expected ErrBadSize for size < header")
+	root, err := Parse(buf)
+	if err != nil {
+		t.Fatalf("size<8 must not be a parse error: %v", err)
+	}
+	if len(root.Anomalies) != 1 {
+		t.Fatalf("anomalies = %d, want 1 (%+v)", len(root.Anomalies), root.Anomalies)
+	}
+	a := root.Anomalies[0]
+	if a.Kind != AnomTooSmallSize || a.Offset != 0 || a.BoxType != "free" || a.Declared != 4 {
+		t.Fatalf("anomaly = %+v", a)
 	}
 }
 
+// 连根盒头都读不出（< 8 字节）→ 树无法建立 → error（CLI 退出码 3）。
 func TestParseRejectsTruncatedHeader(t *testing.T) {
 	if _, err := Parse([]byte{0, 0, 0, 1, 'm', 'd'}); err == nil {
 		t.Fatal("expected ErrShortHeader")
+	}
+	if _, err := Parse(nil); err == nil {
+		t.Fatal("expected error for empty file")
 	}
 }
 
@@ -109,6 +123,51 @@ func TestDeepNestingDoesNotStackOverflow(t *testing.T) {
 	// 深度被 MaxDepth 截断是预期行为（防御），但不得 panic
 	if count > 10000 {
 		t.Fatalf("walk visited %d nodes (more than built)", count)
+	}
+}
+
+// 深盒树（≥5000 层）不 panic、不爆栈，且记一条 max_depth_exceeded 异常（M2 DoD）。
+func TestDeepNestingAbove5000RecordsDepthAnomaly(t *testing.T) {
+	const depth = 6000
+	var data []byte
+	for i := 0; i < depth; i++ {
+		data = box("udta", data)
+	}
+	root, err := Parse(data)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	maxDepth, tooSmall := 0, 0
+	for _, a := range root.Anomalies {
+		switch a.Kind {
+		case AnomMaxDepth:
+			maxDepth++
+			if a.Depth != MaxDepth {
+				t.Fatalf("depth anomaly at depth %d, want %d", a.Depth, MaxDepth)
+			}
+		case AnomTooSmallSize:
+			tooSmall++
+		}
+	}
+	if maxDepth != 1 {
+		t.Fatalf("max_depth anomalies = %d, want exactly 1", maxDepth)
+	}
+	if tooSmall != 0 {
+		t.Fatalf("unexpected too_small_size anomalies: %d", tooSmall)
+	}
+	// 迭代遍历同样不得爆栈
+	visited := 0
+	Walk(root, func(*Box) bool { visited++; return true })
+	if visited == 0 {
+		t.Fatal("walk visited nothing")
+	}
+}
+
+// PayloadLen 在 size<header 时不得下溢（防 uint64 回绕）。
+func TestPayloadLenDoesNotUnderflow(t *testing.T) {
+	b := &Box{Size: 4, HeaderSize: 8}
+	if b.PayloadLen() != 0 {
+		t.Fatalf("PayloadLen = %d, want 0", b.PayloadLen())
 	}
 }
 

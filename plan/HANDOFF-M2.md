@@ -18,9 +18,9 @@
 | 真实样本登记 | ✅ 22 条 | `data/real-samples.json`（sha256 + source_url + license；**样本本体不入库**） |
 | 两门 + 变异验证 | ✅ | `node tools/tasks.mjs gates`（11 判据 / 4 规则）；`verify-gates`（21 组逐组变红） |
 | 本地全套 | ✅ | `node tools/tasks.mjs all` → exit 0 |
-| **M2 实现** | ⬜ **未开工** | 本文件即其入口 |
+| **M2 实现** | ✅ **已完成** | 见 §六 DoD 结果；产物 = `internal/isobmff` IR + `internal/rules/structure`（八条规则） |
 
-提交：见 `git log --oneline`（末条为 `M1 · 数据先行 …`）。
+提交：见 `git log --oneline`（末条为 `M2 · 结构判定 …`）。
 
 ---
 
@@ -103,17 +103,31 @@
 
 ---
 
-## 六、DoD 逐项 checklist（M2，取自 `plan/00 §五` 与 `plan/05 §二`）
+## 六、DoD 逐项 checklist（M2，取自 `plan/00 §五` 与 `plan/05 §二`）—— ✅ 收尾已验（2026-10-28）
 
-- [ ] `internal/isobmff` 迭代遍历 + `size==0/1` 两形态（golden 字节）
-- [ ] 模块 M1 全部 RuleID 实现（`plan/03 §二` 八条）
-- [ ] `C1`/`C2`/`C3` 命中 **3/3**、对照组**误报 0**
-- [ ] 深盒树（≥5000 层）不 panic、不爆栈
-- [ ] 每条 `fail` 带四元组（偏移 + 字段路径 + 值 + 差值）
-- [ ] `--modules M1` 单独跑通且结论 == 全集里 M1 的结论（G9）
-- [ ] `docs/rules.md` M1 节写完（反例指向样本 id）
-- [ ] 三处状态副本同提交翻 ✅ + `plan/HANDOFF-M3.md` 已写
-- [ ] `node tools/tasks.mjs all` 全绿
+- [x] `internal/isobmff` 迭代遍历 + `size==0/1` 两形态（golden 字节） — `Parse` 迭代（显式栈）；`TestParseSizeZeroMeansToEnd` / `TestParseLargesize` 保真
+- [x] 模块 M1 全部 RuleID 实现（`plan/03 §二` 八条） — `internal/rules/structure`；`RuleIDs` 与 docs 对账
+- [x] `C1`/`C2`/`C3` 命中 **3/3**、对照组**误报 0** — `TestM1MatchesFixtureTruth` 对 **92 例集合相等**：缺陷 11 例（C1/C1b、C2–C2d、C3/C3b、S1/S2/S3）召回精确，对照 60 例 0 finding
+- [x] 深盒树（≥5000 层）不 panic、不爆栈 — `TestDeepNestingAbove5000RecordsDepthAnomaly`（6000 层，记 1 条 `max_depth_exceeded`）
+- [x] 每条 `fail` 带四元组（偏移 + 字段路径 + 值 + 差值） — 所有 finding 过 `report.Finding.Validate()`；单测逐条断言
+- [x] `--modules M1` 单独跑通且结论 == 全集里 M1 的结论（G9） — `TestM1SubsetConclusionIsStable` + `TestFlagOrderDoesNotMatter`
+- [x] `docs/rules.md` M1 节写完（反例指向样本 id） — 八条规则的判据/证据/反例 + `case_id`
+- [x] 三处状态副本同提交翻 ✅ + `plan/HANDOFF-M3.md` 已写
+- [x] `node tools/tasks.mjs all` 全绿
+
+### M2 期间的设计取舍（写清以免被当漏项）
+
+| 取舍 | 为什么 |
+|---|---|
+| **`Parse` 改为宽容**：内容级异常（`size<8`、子盒越界、声明 size 越过文件、深度超限）记进 `root.Anomalies`，**不返回 error** | `plan/03 §二` 要求 `too_small_size` / `max_depth_exceeded` 是 **finding**；若 `size<8` 仍硬失败，规则层永远看不到它。只有"连根盒头都读不出"（剩余 < 8 字节）才判 parse error（退出码 3）。据此更新了两条骨架期单测（`TestParseRejectsTooSmallSize` → `TestParseRecordsTooSmallSize`；`TestAuditUnparsableFileIsUsageError` 的输入改成真正读不出盒头的 3 字节） |
+| **`duplicate_mdat` 在含 `moof` 的分片文件里不报** | 分片文件每片自带 `mdat` 是**合法形态**（`K9-frag`/`C5b`/`C5c`/`F1` 全是 2 个 `mdat`）。不排除会把对照组打爆 → 误报 |
+| **重复 `moov` ⇒ 跳过 `stco/co64` 区间校验** | 同"同一根因合并"（`plan/03 §1.3`）：`C1b` 把第二份 `moov` 紧贴插入，原 `stco` 值随即落在第二份 `moov` 里——若照报会多出一条 `stco_out_of_mdat`，与真值 `["duplicate_moov"]` 不符 |
+| **`ftyp_brand_mismatch` 取窄口径** | 只在 major brand **就是编码名**（`avc1`/`hvc1`/…）且与 `stsd` 条目矛盾时报；否则 `isom` 容器装 `hvc1` 轨这类**合法**组合会被误伤（`m3-regression` 里有 6 例 `hvc1`） |
+| **`TestFlagOrderDoesNotMatter` 分路径断言** | M1 实现后 `--modules M1` 对合法样本是 pass(0)，而默认全集仍因 M2–M5 未实现落 3——两条路径分别断言，避免"参数形态没被认出来"与"模块未实现的 3"混为一谈 |
+| **`cmd/mediatrace` 的 `run()`/`usage()` 改收 `io.Writer`** | 便于测试用 `bytes.Buffer` 捕获 JSON（不改语义；既有调用仍传 `*os.File`） |
+
+**M2 未做（如实登记，见 `plan/06 §三` 缺口表）**：MKV EBML 结构对应项（`plan/01 §十`）——
+首期夹具与生成器均为 MP4，无 EBML 真值可对，顺延二期；已把 `plan/00 §五` M2 内容格写明。
 
 ---
 
