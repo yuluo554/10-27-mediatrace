@@ -2,6 +2,7 @@ package gen
 
 import (
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"go/ast"
 	"go/parser"
@@ -39,7 +40,39 @@ func TestBuildIsDeterministic(t *testing.T) {
 	}
 }
 
-// 未知 suite 不得静默返回空集（空集冒充失败）。
+// 子集 suite 的结论必须与全集里的同 ID 样本逐字节一致（K9 的生成侧对应）。
+func TestSuiteSubsetIsConsistentWithAll(t *testing.T) {
+	all, err := Build(Config{Seed: 20261027, Suite: "all"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	index := map[string]Case{}
+	for _, c := range all {
+		index[c.ID] = c
+	}
+	for _, suite := range []string{"defects", "controls", "m3-regression", "m4", "m5"} {
+		sub, err := Build(Config{Seed: 20261027, Suite: suite})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(sub) == 0 {
+			t.Errorf("suite %s produced 0 cases", suite)
+			continue
+		}
+		for _, c := range sub {
+			ref, ok := index[c.ID]
+			if !ok {
+				t.Errorf("suite %s case %s missing from all", suite, c.ID)
+				continue
+			}
+			if c.SHA256 != ref.SHA256 {
+				t.Errorf("suite %s case %s bytes drift vs all", suite, c.ID)
+			}
+		}
+	}
+}
+
+// 未知 suite 不得静默返回非空集（空套件冒充失败）。
 func TestUnknownSuiteProducesNoCases(t *testing.T) {
 	cases, err := Build(Config{Seed: 1, Suite: "does-not-exist"})
 	if err != nil {
@@ -50,17 +83,183 @@ func TestUnknownSuiteProducesNoCases(t *testing.T) {
 	}
 }
 
-// 每个构造器的真值必须非空（缺陷样本必须声明期望）。
-func TestEveryBuilderDeclaresExpectation(t *testing.T) {
+// 每条真值必须完整：pass 组不得带 Expected；fail/gray 组必须带 Expected，gray 必带闭集 reason。
+func TestEveryBuilderDeclaresCompleteTruth(t *testing.T) {
+	validReasons := map[string]bool{
+		"vfr_detected": true, "no_roll_distance": true, "unknown_codec_priming": true,
+		"media_rate_not_one": true, "no_edts": true, "hdr_metadata_missing": true,
+		"timescale_suspect": true, "duration_unknown": true,
+	}
 	for _, b := range builders {
-		if len(b.Expected) == 0 {
-			t.Errorf("%s declares no expected findings", b.ID)
+		switch b.ExpectStatus {
+		case ExpectPass:
+			if len(b.Expected) != 0 {
+				t.Errorf("%s: pass case must declare no expected findings", b.ID)
+			}
+			if b.GrayReason != "" {
+				t.Errorf("%s: pass case must not declare a gray reason", b.ID)
+			}
+		case ExpectFail, ExpectGray:
+			if len(b.Expected) == 0 {
+				t.Errorf("%s: %s case declares no expected findings", b.ID, b.ExpectStatus)
+			}
+		default:
+			t.Errorf("%s: unknown expect_status %q", b.ID, b.ExpectStatus)
+		}
+		if b.ExpectStatus == ExpectGray {
+			if !validReasons[b.GrayReason] {
+				t.Errorf("%s: gray reason %q not in closed set", b.ID, b.GrayReason)
+			}
+		} else if b.GrayReason != "" {
+			t.Errorf("%s: only gray cases may declare a gray reason", b.ID)
 		}
 		if b.Note == "" {
 			t.Errorf("%s has no note", b.ID)
 		}
 		if !strings.HasSuffix(b.Filename, ".mp4") {
 			t.Errorf("%s filename %q is not .mp4", b.ID, b.Filename)
+		}
+	}
+}
+
+// 分类门槛（计数据由集合算出，不落易漂移常量）：
+//   - 合成缺陷集（defects）≥25 例，且 C1–C7 每类 ≥1；
+//   - controls 每类至少 1 个合法样本；
+//   - m3-regression ≥20 且含 B 帧（ctts 有偏移）；
+//   - m4 / m5 正反例各 5。
+func TestSuiteThresholdsHoldByConstruction(t *testing.T) {
+	all, err := Build(Config{Seed: 20261027, Suite: "all"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	bySuite := map[string][]Case{}
+	for _, c := range all {
+		bySuite[c.Suite] = append(bySuite[c.Suite], c)
+	}
+
+	if n := len(bySuite["defects"]); n < 25 {
+		t.Errorf("defects count = %d, want >= 25", n)
+	}
+	for _, class := range []string{"C1", "C2", "C3", "C4", "C5", "C6", "C7"} {
+		found := false
+		for _, c := range bySuite["defects"] {
+			if strings.HasPrefix(c.ID, class) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("defects suite has no case of class %s", class)
+		}
+	}
+
+	if n := len(bySuite["controls"]); n < 7 {
+		t.Errorf("controls count = %d, want >= 7 (one legal sample per class)", n)
+	}
+
+	m3 := bySuite["m3-regression"]
+	if len(m3) < 20 {
+		t.Errorf("m3-regression count = %d, want >= 20", len(m3))
+	}
+	// B 帧覆盖：至少 1 例 ctts v0 正偏移，至少 1 例 v1 有符号（负偏移）
+	v0, v1 := 0, 0
+	for _, b := range m3RegressionBuilders {
+		if b.ExpectStatus != ExpectPass {
+			continue
+		}
+		switch b.BuildShape {
+		case "ctts-v0-bframes":
+			v0++
+		case "ctts-v1-signed":
+			v1++
+		}
+	}
+	if v0 == 0 {
+		t.Error("m3-regression has no ctts v0 B-frame case")
+	}
+	if v1 == 0 {
+		t.Error("m3-regression has no ctts version=1 case — negative offsets would go untested")
+	}
+
+	for _, suite := range []string{"m4", "m5"} {
+		pos, neg := 0, 0
+		for _, c := range bySuite[suite] {
+			if c.ExpectStatus == ExpectPass {
+				neg++
+			} else {
+				pos++
+			}
+		}
+		if pos != 5 || neg != 5 {
+			t.Errorf("%s: positives=%d negatives=%d, want 5/5", suite, pos, neg)
+		}
+	}
+
+	// 每个 ID 与文件名唯一
+	ids := map[string]bool{}
+	names := map[string]bool{}
+	for _, c := range all {
+		if ids[c.ID] {
+			t.Errorf("duplicate case id %s", c.ID)
+		}
+		ids[c.ID] = true
+		if names[c.Filename] {
+			t.Errorf("duplicate filename %s", c.Filename)
+		}
+		names[c.Filename] = true
+	}
+}
+
+// 期望偏移必须落在真实字节内（构造点真值不得空跑）。
+func TestExpectedOffsetPointsAtDeclaredField(t *testing.T) {
+	all, err := Build(Config{Seed: 20261027, Suite: "all"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	checked := 0
+	for _, c := range all {
+		if c.ExpectStatus == ExpectPass || c.Offset == 0 {
+			continue
+		}
+		if c.Offset >= uint64(len(c.Bytes)) {
+			t.Errorf("%s: expected offset 0x%X beyond file size %d", c.ID, c.Offset, len(c.Bytes))
+			continue
+		}
+		checked++
+	}
+	if checked == 0 {
+		t.Error("no fail/gray case declares an expected offset — the construction-time truth is vacuous")
+	}
+	t.Logf("checked %d construction-time offsets", checked)
+}
+
+// 顶层盒流自洽（生成侧自证）：除声明过"截断/子盒越界"的样本外，
+// 顶层盒的 size 必须落在文件内且不重叠。
+func TestAllSamplesParseAsBoxStream(t *testing.T) {
+	all, err := Build(Config{Seed: 20261027, Suite: "all"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range all {
+		off := 0
+		for off+8 <= len(c.Bytes) {
+			size := uint64(binary.BigEndian.Uint32(c.Bytes[off : off+4]))
+			if size == 1 {
+				if off+16 > len(c.Bytes) {
+					break
+				}
+				size = binary.BigEndian.Uint64(c.Bytes[off+8 : off+16])
+			} else if size == 0 {
+				size = uint64(len(c.Bytes) - off)
+			}
+			if size < 8 || uint64(off)+size > uint64(len(c.Bytes)) {
+				// 截断类允许提前结束；其余视为生成缺陷
+				if !strings.HasPrefix(c.ID, "C3") {
+					t.Errorf("%s: top-level box at 0x%X size=%d overruns file (%d bytes)", c.ID, off, size, len(c.Bytes))
+				}
+				break
+			}
+			off += int(size)
 		}
 	}
 }
@@ -97,7 +296,6 @@ func TestGeneratorHasNoClockEnvOrExec(t *testing.T) {
 				t.Errorf("%s imports %q (%s) — violates determinism discipline", rel, p, why)
 			}
 			if p == "os" {
-				// os 允许用于写文件，但不得读环境变量
 				src, rerr := os.ReadFile(path)
 				if rerr == nil && strings.Contains(string(src), "os.Getenv") {
 					rel, _ := filepath.Rel(root, path)

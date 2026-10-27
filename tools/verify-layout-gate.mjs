@@ -169,6 +169,100 @@ function compose(...factories) {
   };
 }
 
+/**
+ * 读「里程碑状态表」得到 (key, pending) 列表。**与布局门同一定位口径**
+ * （表头同行含「状态」且含「阶段/里程碑」；表结束即停）。
+ *
+ * 为什么要这个：本脚本早先把靶子写死成"M1 翻 ✅"（`flipM1()`）。M1 一旦真的收尾翻 ✅，
+ * `setStatus` 就会抛"变异无意义"、`hide("plan/HANDOFF-M1.md")` 也会红错判据 ——
+ * 脚本在里程碑推进时**自崩**。这正是文件头警告的"靶子依赖进度状态"。
+ * 现在一律**从仓库状态现算**靶子，任一进度下都指得到真实可变的行/文件。
+ */
+function statusRows(rel = "plan/00-README总览.md") {
+  const lines = readFileSync(join(ROOT, rel), "utf8").split("\n");
+  const headerIdx = lines.findIndex(
+    (l) => l.startsWith("|") && l.includes("状态") && (l.includes("阶段") || l.includes("里程碑")),
+  );
+  if (headerIdx < 0) throw new Error(`${rel} 找不到里程碑状态表头`);
+  const rows = [];
+  for (let i = headerIdx + 2; i < lines.length; i++) {
+    if (!lines[i].startsWith("|")) break;
+    if (/^\|\s*-{2,}/.test(lines[i])) continue;
+    const m = /^\|\s*\**\s*(M\d+)\b/.exec(lines[i]);
+    if (!m) continue;
+    rows.push({ key: m[1], pending: /[⬜🟡]|未开工|未开始|未执行|待执行|待确认|进行中/.test(lines[i]) });
+  }
+  if (rows.length === 0) throw new Error(`${rel} 状态表 0 行（判据空跑，变异无处落脚）`);
+  return rows;
+}
+
+/** 当前棒 = 第一个待办；lastDone = 最后一个 ✅。GAPS/LEDGER 类变异需要至少一个 ✅ 靶子。 */
+function milestones() {
+  const rows = statusRows();
+  const pending = rows.filter((r) => r.pending);
+  const done = rows.filter((r) => !r.pending);
+  if (done.length === 0) throw new Error("没有任何 ✅ 里程碑：GAPS/LEDGER/HANDOFFS 类变异无处落脚");
+  return { first: rows[0].key, current: pending[0]?.key ?? null, lastDone: done[done.length - 1].key };
+}
+
+/** 三处副本同一目标格一起翻（`compose` 的工厂形态）。 */
+const flipAll = (key, cell) => [
+  () => setStatus("plan/00-README总览.md", key, cell),
+  () => setStatus("plan/05-里程碑与发布.md", key, cell),
+  () => setStatus("README.md", key, cell),
+];
+
+/** 只改一处副本：有待办就翻 ✅，全完成则把首个里程碑翻回 ⬜（两种进度下都是真变化）。 */
+function statusMutation(rel) {
+  const rows = statusRows();
+  const cur = rows.find((r) => r.pending);
+  return cur ? setStatus(rel, cur.key, "✅ 已完成") : setStatus(rel, rows[0].key, "⬜ 未开工");
+}
+
+/** 在"缺口表"首个数据行的最后一个单元格尾部追加文本（结构定位，不依赖具体文案）。 */
+function appendToFirstGapCell(rel, extra) {
+  return mutate(rel, (t) => {
+    const lines = t.split("\n");
+    const headerIdx = lines.findIndex((l) => l.startsWith("|") && l.includes("缺口"));
+    if (headerIdx < 0) throw new Error(`${rel} 找不到含『缺口』表头的表`);
+    let idx = -1;
+    for (let i = headerIdx + 2; i < lines.length; i++) {
+      if (!lines[i].startsWith("|")) break;
+      if (/^\|\s*-{2,}/.test(lines[i])) continue;
+      idx = i;
+      break;
+    }
+    if (idx < 0) throw new Error(`${rel} 缺口表没有数据行`);
+    if (!lines[idx].trimEnd().endsWith("|")) throw new Error(`${rel} 缺口行不以 | 结尾（结构变了）`);
+    const trimmed = lines[idx].trimEnd();
+    lines[idx] = `${trimmed.slice(0, -1).trimEnd()} ${extra} |`;
+    return lines.join("\n");
+  });
+}
+
+/** 在"承诺-证据台账"表头下方插一行（状态列由调用方给）。 */
+function insertLedgerRow(rel, statusCell) {
+  return mutate(rel, (t) => {
+    const lines = t.split("\n");
+    const headerIdx = lines.findIndex((l) => l.startsWith("|") && l.includes("承诺") && l.includes("状态"));
+    if (headerIdx < 0) throw new Error(`${rel} 找不到『承诺-证据台账』表头`);
+    if (!/^\|\s*-{2,}/.test(lines[headerIdx + 1] ?? "")) throw new Error(`${rel} 台账表头下不是分隔行（结构变了）`);
+    lines.splice(headerIdx + 2, 0, `| 台账变异靶子 | 变异 | 纯本地 | grep | ${statusCell} |`);
+    return lines.join("\n");
+  });
+}
+
+/**
+ * 造一个"当前棒的真实入口交接单"靶子：返回 { rel, pre }。
+ *   · 有待办里程碑 → 它就是当前棒，`pre` 为空（直接删/改它的交接单即可）；
+ *   · 全部 ✅（末棒之后）→ `HANDOFF_ENTRY` 退化为"不适用"（绿），必须先三处副本一致
+ *     把首个里程碑翻回 ⬜ 造出一个当前棒，否则本组变异**无红可验**（就是假门）。
+ */
+function makeCurrentLeg() {
+  if (CURRENT) return { rel: `plan/HANDOFF-${CURRENT}.md`, pre: [] };
+  return { rel: `plan/HANDOFF-${FIRST}.md`, pre: flipAll(FIRST, "⬜ 未开工") };
+}
+
 // ── 0. 基线：两门必须绿 ────────────────────────────────────────────────
 expectGreen("BASELINE.layout", LAYOUT);
 expectGreen("BASELINE.desens", DESENS);
@@ -176,60 +270,66 @@ expectGreen("BASELINE.desens", DESENS);
 // ── 布局门变异（每条判据一组）─────────────────────────────────────────
 // 注意：`compose(...)` 收的是**工厂**（`() => restore`），不是已应用的 restore——
 // 只有这样，第 2 个工厂抛错时才能回滚第 1 个（见 compose 的注释）。
-const GAP_CELL_TEXT = "`tools/fixture-gen/gen/gen.go` 缺 C4a/C4b、C5、C6、C7 与 m3-regression/controls 套件";
+const { first: FIRST, current: CURRENT, lastDone: LAST_DONE } = milestones();
 
 expectFail("M1.FILES", LAYOUT, () => hide("LICENSE"), "LAYOUT.FILES");
 expectFail("M2.BINDING_HEAD", LAYOUT, () => mutate("plan/00-README总览.md", (t) => t.replace(/^>.*ai-tool-project-sprint.*$/m, "> （装订行被删）")), "LAYOUT.BINDING_HEAD");
 // plan/02 的「分层」只出现一次，删标题即真的缺该小节
 expectFail("M3.SECTIONS", LAYOUT, () => mutate("plan/02-架构与技术选型.md", (t) => t.replace("## 一、分层", "## 一、其它")), "LAYOUT.SECTIONS");
-// 只改一处副本的状态 → 跨副本不一致
-expectFail("M4.STATUS", LAYOUT, () => setStatus("README.md", "M2", "✅ 已完成"), "LAYOUT.STATUS");
-const flipM1 = () => [
-  () => setStatus("plan/00-README总览.md", "M1", "✅ 已完成"),
-  () => setStatus("plan/05-里程碑与发布.md", "M1", "✅ 已完成"),
-  () => setStatus("README.md", "M1", "✅ 已完成"),
-];
-// M1 在三处副本一致翻 ✅，同时把它的交接单藏起来 → 交接单判据必须红。
-// （不能只翻 ✅：HANDOFF-M1.md 已存在且七节齐，那属于合法终态、不该红。）
+// 只改一处副本的状态 → 跨副本不一致（靶子按当前棒现算）
+expectFail("M4.STATUS", LAYOUT, () => statusMutation("README.md"), "LAYOUT.STATUS");
+// 某个里程碑在三处副本一致翻 ✅，同时把它的交接单藏起来 → 交接单判据必须红。
+// 靶子：当前棒（有待办）或最后一个已 ✅（全完成）——两种进度下都成立。
 expectFail(
   "M5.HANDOFFS",
   LAYOUT,
-  () => compose(...flipM1(), () => hide("plan/HANDOFF-M1.md")),
+  () =>
+    CURRENT
+      ? compose(...flipAll(CURRENT, "✅ 已完成"), () => hide(`plan/HANDOFF-${CURRENT}.md`))
+      : () => hide(`plan/HANDOFF-${LAST_DONE}.md`),
   "LAYOUT.HANDOFFS",
 );
 // 当前棒的入口交接单被删 → HANDOFF_ENTRY 必须红（本项目实测漏写过一次）
-expectFail("M5b.HANDOFF_ENTRY", LAYOUT, () => hide("plan/HANDOFF-M1.md"), "LAYOUT.HANDOFF_ENTRY");
+expectFail("M5b.HANDOFF_ENTRY", LAYOUT, () => {
+  const { rel, pre } = makeCurrentLeg();
+  return compose(...pre, () => hide(rel));
+}, "LAYOUT.HANDOFF_ENTRY");
 // 入口交接单缺节 → 同一判据必须红（否则"有文件就算过"仍是假门）
+expectFail("M5c.HANDOFF_ENTRY_SECTIONS", LAYOUT, () => {
+  const { rel, pre } = makeCurrentLeg();
+  return compose(...pre, () => mutate(rel, (t) => t.replace("## 二、当前事实", "## 二、其它")));
+}, "LAYOUT.HANDOFF_ENTRY");
+// 在 plan/06 的缺口格写入已 ✅ 的里程碑
 expectFail(
-  "M5c.HANDOFF_ENTRY_SECTIONS",
+  "M6.GAPS",
   LAYOUT,
-  () => mutate("plan/HANDOFF-M1.md", (t) => t.replace("## 二、当前事实 · 状态不变量", "## 二、其它")),
-  "LAYOUT.HANDOFF_ENTRY",
+  () => appendToFirstGapCell("plan/06-交付对标与决策.md", `仍挂 ${LAST_DONE}`),
+  "LAYOUT.GAPS",
 );
-// 同上，再在 plan/06 的缺口格写入已 ✅ 的 M1
-expectFail("M6.GAPS", LAYOUT, () =>
-  compose(
-    ...flipM1(),
-    () => mutate("plan/06-交付对标与决策.md", (t) => t.replace(GAP_CELL_TEXT, GAP_CELL_TEXT + " 仍挂 M1")),
-  ), "LAYOUT.GAPS");
-// 同上，再往承诺台账塞一行"未完成但挂 M1"
-expectFail("M7.LEDGER", LAYOUT, () =>
-  compose(
-    ...flipM1(),
-    () => mutate("plan/00-README总览.md", (t) =>
-      t.replace("| 三口径时长互比", "| 台账变异靶子 | 构造 | 纯本地 | grep | ⬜ 待 M1 |\n| 三口径时长互比")),
-  ), "LAYOUT.LEDGER");
+// 往承诺台账塞一行"未完成但挂已 ✅ 的里程碑"
+expectFail(
+  "M7.LEDGER",
+  LAYOUT,
+  () => insertLedgerRow("plan/00-README总览.md", `⬜ 待 ${LAST_DONE}`),
+  "LAYOUT.LEDGER",
+);
 expectFail("M8.DOC_TOOLS", LAYOUT, () =>
-  mutate("plan/06-交付对标与决策.md", (t) => t.replace(GAP_CELL_TEXT, GAP_CELL_TEXT + " + `tools/not-exist-gate.mjs`")),
+  appendToFirstGapCell("plan/06-交付对标与决策.md", "见 `tools/not-exist-gate.mjs`"),
   "LAYOUT.DOC_TOOLS");
 expectFail("M9.GITIGNORE", LAYOUT, () => mutate(".gitignore", (t) => t.replace(/^\.mimosa\/?$/m, "# (规则被删)")), "LAYOUT.GITIGNORE");
-// 发布里程碑翻 ✅ 但没有 RELEASE-M6.md → 留档判据必须红
-expectFail("M10.RELEASE", LAYOUT, () =>
-  compose(
-    () => setStatus("plan/00-README总览.md", "M6", "✅ 已完成"),
-    () => setStatus("plan/05-里程碑与发布.md", "M6", "✅ 已完成"),
-    () => setStatus("README.md", "M6", "✅ 已完成"),
+// 发布里程碑（状态表里最大的号）翻 ✅ 但没有 RELEASE-M6.md → 留档判据必须红。
+// 进度无关：发布里程碑尚未 ✅ 时翻它；若它已 ✅ 且留档在位，则把留档藏起来（同一判据必须红）。
+const releaseKey = statusRows().map((r) => Number(r.key.slice(1))).reduce((a, b) => Math.max(a, b), 0);
+const REL = `M${releaseKey}`;
+const releaseIsDone = !statusRows().find((r) => r.key === REL)?.pending;
+if (releaseIsDone) {
+  expectFail("M10.RELEASE", LAYOUT, () => compose(
+    () => (existsSync(join(ROOT, `plan/RELEASE-${REL}.md`)) ? hide(`plan/RELEASE-${REL}.md`) : () => {}),
+    () => (existsSync(join(ROOT, `plan/WRAPUP-${REL}.md`)) ? hide(`plan/WRAPUP-${REL}.md`) : () => {}),
   ), "LAYOUT.RELEASE");
+} else {
+  expectFail("M10.RELEASE", LAYOUT, () => compose(...flipAll(REL, "✅ 已完成")), "LAYOUT.RELEASE");
+}
 
 // ── 脱敏门变异（4 条规则各一组）──────────────────────────────────────
 const probe = "docs/_desens-probe.md";

@@ -23,14 +23,17 @@ import (
 
 // manifestEntry 是 manifest.json 的一行（真值标签）。
 type manifestEntry struct {
-	CaseID   string   `json:"case_id"`
-	Suite    string   `json:"suite"`
-	Filename string   `json:"filename"`
-	SHA256   string   `json:"sha256"`
-	Size     int      `json:"size_bytes"`
-	Seed     uint64   `json:"seed"`
-	Expected []string `json:"expected_findings"` // 规则 ID 列表；空 = 期望 pass
-	Note     string   `json:"note,omitempty"`
+	CaseID       string   `json:"case_id"`
+	Suite        string   `json:"suite"`
+	Filename     string   `json:"filename"`
+	SHA256       string   `json:"sha256"`
+	Size         int      `json:"size_bytes"`
+	Seed         uint64   `json:"seed"`
+	ExpectStatus string   `json:"expect_status"` // pass | fail | gray
+	Expected     []string `json:"expected_findings"`
+	GrayReason   string   `json:"gray_reason,omitempty"`
+	Offset       uint64   `json:"expected_offset,omitempty"` // 首证据的构造点偏移（pass 为 0）
+	Note         string   `json:"note,omitempty"`
 }
 
 type manifest struct {
@@ -98,6 +101,7 @@ func writeAll(cases []gen.Case, outDir string, seed uint64) error {
 			CaseID: c.ID, Suite: c.Suite, Filename: c.Filename,
 			SHA256: c.SHA256, Size: len(c.Bytes), Seed: c.Seed,
 			Expected: c.Expected, Note: c.Note,
+				ExpectStatus: c.ExpectStatus, GrayReason: c.GrayReason, Offset: c.Offset,
 		})
 	}
 	raw, err := json.MarshalIndent(m, "", "  ")

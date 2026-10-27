@@ -1,13 +1,20 @@
-// Package gen 是 C1–C7 缺陷夹具的构造器集合。
+// Package gen 是 C1–C7 缺陷夹具与对照组的构造器集合。
 //
-// 骨架期已实现：C1（双 moov）、C2（stco 越界）、C3（截断 mdat）。
-// 待实现（对应里程碑 M1 出口门）：C4a/C4b（时长口径互斥）、C5（回退 DTS）、
-// C6（1024 samples 延迟）、C7（matrix=90 无 pasp），以及对照组与 m3-regression 套件。
+// M1 交付的构造类（权威编号 `data/README.md §4`）：
+//
+//	C1 双 moov · C2 stco 越界 · C3 截断 mdat · C4a/C4b 时长口径互斥（不写负数字段）
+//	C5 回退 DTS（stts 零时长 + 分片 tfdt 倒退） · C6 1024 samples 延迟 · C7 matrix=±90 无 pasp
+//
+// 对照组（证明"不误伤"，误报 0 是门禁）：
+//
+//	controls     每类至少 1 个合法样本
+//	m3-regression ≥20 个正常 H.264/H.265（含 B 帧 + ctts 有符号偏移）
+//	m4 / m5      正反例各 5
 //
 // 纪律：
 //   - 只用 Config.Seed 做"随机选择"（本包当前无随机项，保留接口）；
-//   - 不读时钟、不读环境变量、不起外部进程；
-//   - 每个 Case 自带 Bytes 与 SHA256，真值（Expected）在构造点确定。
+//   - 不读时钟、不读环境变量、不起外部进程（gen_test.go 的 AST 扫描守）；
+//   - 每个 Case 自带 Bytes 与 SHA256；真值在构造点确定（ExpectPass 与 marks）。
 package gen
 
 import (
@@ -24,52 +31,65 @@ type Config struct {
 	Suite string // all|defects|controls|m3-regression|m4|m5
 }
 
+// 期望状态（真值三态；与 report.Status 同字面）。
+const (
+	ExpectPass = "pass"
+	ExpectFail = "fail"
+	ExpectGray = "gray"
+)
+
 // Case 是一个生成的样本 + 真值标签。
+//
+// 真值纪律（plan/04 T1/T5）：ExpectStatus / Expected / GrayReason / Offset
+// 全部来自**构造参数**，不由任何实现回算；Offset 是构造点已知的
+// "首条 finding 应指向的字节偏移"（pass 类为 0）。
 type Case struct {
-	ID       string
-	Suite    string
-	Filename string
-	Bytes    []byte
-	SHA256   string
-	Seed     uint64
-	Expected []string // 期望命中的规则 ID；空 = 期望 pass
-	Note     string
+	ID           string
+	Suite        string
+	Filename     string
+	Bytes        []byte
+	SHA256       string
+	Seed         uint64
+	ExpectStatus string   // pass | fail | gray
+	Expected     []string // 期望命中的规则 ID（fail/gray 必带）
+	GrayReason   string   // ExpectStatus==gray 时的期望 reason（§5.5 闭集）
+	Offset       uint64   // 期望的首字节偏移（构造点已知；pass 为 0）
+	Note         string
 }
 
-// Builder 是一个样本构造器。
+// Builder 是一个样本构造器。Build 返回字节 + 构造点已知的首证据偏移。
 type Builder struct {
-	ID       string
-	Suite    string
-	Filename string
-	Expected []string
-	Note     string
-	Build    func(seed uint64) ([]byte, error)
+	ID           string
+	Suite        string
+	Filename     string
+	ExpectStatus string
+	Expected     []string
+	GrayReason   string
+	Note         string
+	// BuildShape 是给"覆盖维度"断言用的形状标签（非空时由 gen_test 按名字计数）。
+	BuildShape string
+	Build      func(seed uint64) (raw []byte, offset uint64, err error)
 }
 
-// builders 是已实现的构造器清单。新增一类：在这里追加 + 更新 docs/fixture-pools.md。
-var builders = []Builder{
-	{
-		ID: "C1", Suite: "defects", Filename: "c1_dual_moov.mp4",
-		Expected: []string{"duplicate_moov"},
-		Note:     "复制整个 moov 盒插在第二处；期望 M1 duplicate_moov，报两处偏移",
-		Build:    buildC1DualMoov,
-	},
-	{
-		ID: "C2", Suite: "defects", Filename: "c2_stco_out_of_mdat.mp4",
-		Expected: []string{"stco_out_of_mdat"},
-		Note:     "单个 chunk offset 指向 mdat 载荷之外",
-		Build:    buildC2StcoOutOfMdat,
-	},
-	{
-		ID: "C3", Suite: "defects", Filename: "c3_truncated_mdat.mp4",
-		Expected: []string{"truncated_mdat"},
-		Note:     "声明 mdat size 大于实际剩余字节",
-		Build:    buildC3TruncatedMdat,
-	},
+// builders 是全部构造器。新增一类：在这里追加 + 更新 docs/fixture-pools.md。
+var builders = append(append(append(append(
+	defectBuilders, controlBuilders...),
+	m3RegressionBuilders...),
+	m4Builders...),
+	m5Builders...)
+
+// suites 是合法的 suite 名（未知 suite 返回空集，由 CLI 判为非法）。
+var suites = map[string]bool{
+	"all": true, "defects": true, "controls": true,
+	"m3-regression": true, "m4": true, "m5": true,
 }
 
 // Build 按 suite 过滤并构造全部样本（按 ID 排序，确定性）。
 func Build(cfg Config) ([]Case, error) {
+	if !suites[cfg.Suite] {
+		// 未知 suite：返回空集，由 CLI 判为非法（不得静默当成 pass）
+		return nil, nil
+	}
 	selected := make([]Builder, 0, len(builders))
 	for _, b := range builders {
 		if cfg.Suite == "all" || cfg.Suite == b.Suite {
@@ -79,7 +99,7 @@ func Build(cfg Config) ([]Case, error) {
 	sort.Slice(selected, func(i, j int) bool { return selected[i].ID < selected[j].ID })
 	out := make([]Case, 0, len(selected))
 	for _, b := range selected {
-		raw, err := b.Build(cfg.Seed)
+		raw, off, err := b.Build(cfg.Seed)
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", b.ID, err)
 		}
@@ -87,7 +107,8 @@ func Build(cfg Config) ([]Case, error) {
 		out = append(out, Case{
 			ID: b.ID, Suite: b.Suite, Filename: b.Filename, Bytes: raw,
 			SHA256: hex.EncodeToString(sum[:]), Seed: cfg.Seed,
-			Expected: b.Expected, Note: b.Note,
+			ExpectStatus: b.ExpectStatus, Expected: b.Expected,
+			GrayReason: b.GrayReason, Offset: off, Note: b.Note,
 		})
 	}
 	return out, nil
@@ -130,52 +151,4 @@ func concat(parts ...[]byte) []byte {
 		out = append(out, p...)
 	}
 	return out
-}
-
-// ── C1：双 moov ─────────────────────────────────────────────────────────
-func buildC1DualMoov(seed uint64) ([]byte, error) {
-	ftyp := box("ftyp", concat([]byte("isom"), u32(0x200), []byte("isomiso2mp41")))
-	mvhd := fullBox("mvhd", 0, 0, append(concat(u32(0), u32(0), u32(1000), u32(1000)),
-		concat(make([]byte, 80))...))
-	moov := box("moov", mvhd)
-	mdat := box("mdat", make([]byte, 32))
-	return concat(ftyp, moov, moov, mdat), nil
-}
-
-// ── C2：stco 越界 ────────────────────────────────────────────────────────
-func buildC2StcoOutOfMdat(seed uint64) ([]byte, error) {
-	ftyp := box("ftyp", concat([]byte("isom"), u32(0x200), []byte("isomiso2mp41")))
-	// stsd: 空表（entry_count=0 也可解析）
-	stsd := fullBox("stsd", 0, 0, u32(0))
-	// stts: 1 entry, count=1, duration=1000
-	stts := fullBox("stts", 0, 0, concat(u32(1), u32(1), u32(1000)))
-	// stsz: sample_size=0, sample_count=1, entry=4
-	stsz := fullBox("stsz", 0, 0, concat(u32(0), u32(1), u32(4)))
-	// stsc: 1 entry
-	stsc := fullBox("stsc", 0, 0, concat(u32(1), u32(1), u32(1), u32(1)))
-	// stco: 1 entry pointing far beyond mdat payload (0x7FFFFFF0)
-	stco := fullBox("stco", 0, 0, concat(u32(1), u32(0x7FFFFFF0)))
-	stbl := box("stbl", concat(stsd, stts, stsz, stsc, stco))
-	minf := box("minf", stbl)
-	mdia := box("mdia", minf)
-	trak := box("trak", mdia)
-	mvhd := fullBox("mvhd", 0, 0, append(concat(u32(0), u32(0), u32(1000), u32(1000)),
-		make([]byte, 80)...))
-	moov := box("moov", concat(mvhd, trak))
-	mdat := box("mdat", make([]byte, 64)) // payload 区间远小于 0x7FFFFFF0
-	return concat(ftyp, moov, mdat), nil
-}
-
-// ── C3：截断 mdat ────────────────────────────────────────────────────────
-func buildC3TruncatedMdat(seed uint64) ([]byte, error) {
-	ftyp := box("ftyp", concat([]byte("isom"), u32(0x200), []byte("isomiso2mp41")))
-	mvhd := fullBox("mvhd", 0, 0, append(concat(u32(0), u32(0), u32(1000), u32(1000)),
-		make([]byte, 80)...))
-	moov := box("moov", mvhd)
-	// mdat 头声明 size=1024，但实际只给 16 字节载荷
-	head := make([]byte, 8)
-	binary.BigEndian.PutUint32(head[0:4], 1024)
-	copy(head[4:8], "mdat")
-	mdat := append(head, make([]byte, 16)...)
-	return concat(ftyp, moov, mdat), nil
 }

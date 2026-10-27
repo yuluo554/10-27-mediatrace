@@ -1,5 +1,257 @@
 {
-  "note": "真实公开样本登记表。样本本体不入库（.gitignore 排除 *.mp4/*.mkv），只登记 sha256 + 来源 URL + 许可。verified 为 null = 尚未复跑（诚实标注，不得当通过）。格式与纪律见 plan/04 §六。",
+  "note": "真实公开样本登记表。样本本体不入库（.gitignore 排除 *.mp4/*.mkv），只登记 sha256 + 来源 URL + 许可。verified 为 null = 尚未经 mediatrace 复跑（诚实标注，不得当通过；判定模块实现于 M2–M5，当前全部为 null）。格式与纪律见 plan/04 §六。",
   "updated": "2026-10-27",
-  "samples": []
+  "registration_window": "2026-10-27（全部条目均于该窗口内实际下载并本地 sha256 复核）",
+  "source_notes": [
+    {
+      "source": "test-videos.co.uk",
+      "license_statement": "站点首页明示：All the videos on this site have been transcoded using FFmpeg. They are all free to download and use, just as the originals are，并链至 Creative Commons Attribution 3.0。",
+      "evidence_url": "https://test-videos.co.uk/index.md",
+      "caveat": "站点级声明覆盖其转码产物；原始素材（Big Buck Bunny / Sintel）上游为 Blender 开放电影（CC-BY 3.0）。Jellyfish 的上游原始许可本次未独立复核。"
+    },
+    {
+      "source": "download.blender.org（durian/trailer）",
+      "license_statement": "Blender 开放电影（Sintel）预告片原件；按 Blender 开放电影项目的 CC-BY 3.0 发布方式登记。",
+      "evidence_url": "https://download.blender.org/durian/trailer/",
+      "caveat": "目录页为纯文件清单（无许可文本）；未逐条读取许可原文，依据项目通行发布方式登记。"
+    },
+    {
+      "source": "media.w3.org",
+      "license_statement": "W3C 媒体测试样例（Sintel / Big Buck Bunny 预告片）；其中 sintel trailer 与 Blender 480p 原件 sha256 逐字节相同（互为镜像佐证）。",
+      "evidence_url": "https://media.w3.org/2010/05/sintel/trailer.mp4",
+      "caveat": "W3C 站点未逐条标注许可；以其与上游原件的字节等价性 + 上游许可登记。"
+    }
+  ],
+  "excluded": [
+    {
+      "candidate": "test-videos.co.uk .../mkv/360/Big_Buck_Bunny_360_10s_1MB.mkv",
+      "reason": "实测 ftyp=isom：真正的容器是 MP4，只是扩展名为 .mkv。已登记为『扩展名与容器不一致』观察样本，不冒充 MKV 样本。"
+    },
+    {
+      "candidate": "samples.ffmpeg.org/Matroska/*",
+      "reason": "第三方测试剪辑（含受版权素材），站点未标注任何许可。按 data/README §3『未登记许可的一律不用』排除，不进登记表。"
+    }
+  ],
+  "samples": [
+    {
+      "id": "REAL-001",
+      "filename": "bbb_h264_360.mp4",
+      "sha256": "77145c94c11f3754207499158df22406e1fe7635553c1c86dc5e881dfeb32016",
+      "size_bytes": 991017,
+      "source_url": "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4",
+      "license": "CC-BY-3.0（test-videos.co.uk 转码产物；上游 Big Buck Bunny 为 Blender CC-BY 3.0）",
+      "verified": null,
+      "note": "只读字节、不解码；h264 640x360 10s（ffprobe 元数据实测，仅用于登记描述）"
+    },
+    {
+      "id": "REAL-002",
+      "filename": "bbb_h264_720.mp4",
+      "sha256": "6c92c730490901544a5564ed80f0f708fd582b2aacac580af2166578a5510611",
+      "size_bytes": 1978137,
+      "source_url": "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_2MB.mp4",
+      "license": "CC-BY-3.0（test-videos.co.uk 转码产物；上游 Blender CC-BY 3.0）",
+      "verified": null,
+      "note": "h264 1280x720 10s"
+    },
+    {
+      "id": "REAL-003",
+      "filename": "bbb_h264_1080.mp4",
+      "sha256": "e131ad42621442758a3acb899bfbdfeeab0b40c7e2f7c7e66683f58a09a99aee",
+      "size_bytes": 5238714,
+      "source_url": "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/1080/Big_Buck_Bunny_1080_10s_5MB.mp4",
+      "license": "CC-BY-3.0（test-videos.co.uk 转码产物；上游 Blender CC-BY 3.0）",
+      "verified": null,
+      "note": "h264 1920x1080 10s"
+    },
+    {
+      "id": "REAL-004",
+      "filename": "bbb_h265_360.mp4",
+      "sha256": "1002dc56cbc487595252b86a088cbf6ba03eb434c33c27a31ca46254310fb05b",
+      "size_bytes": 1057627,
+      "source_url": "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h265/360/Big_Buck_Bunny_360_10s_1MB.mp4",
+      "license": "CC-BY-3.0（test-videos.co.uk 转码产物；上游 Blender CC-BY 3.0）",
+      "verified": null,
+      "note": "hevc 640x360 10s"
+    },
+    {
+      "id": "REAL-005",
+      "filename": "bbb_h265_720.mp4",
+      "sha256": "bffea634e38ffadf7adb99003792c813be55a3571c91a304f1cc04eb780036d2",
+      "size_bytes": 2104305,
+      "source_url": "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h265/720/Big_Buck_Bunny_720_10s_2MB.mp4",
+      "license": "CC-BY-3.0（test-videos.co.uk 转码产物；上游 Blender CC-BY 3.0）",
+      "verified": null,
+      "note": "hevc 1280x720 10s"
+    },
+    {
+      "id": "REAL-006",
+      "filename": "bbb_h265_1080.mp4",
+      "sha256": "8c9460e1791765030aa39dda710d709c69aaddee92eda82f3920b8c2d7b4b613",
+      "size_bytes": 5251468,
+      "source_url": "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h265/1080/Big_Buck_Bunny_1080_10s_5MB.mp4",
+      "license": "CC-BY-3.0（test-videos.co.uk 转码产物；上游 Blender CC-BY 3.0）",
+      "verified": null,
+      "note": "hevc 1920x1080 10s"
+    },
+    {
+      "id": "REAL-007",
+      "filename": "bbb_av1_360.mp4",
+      "sha256": "eab9caae4eb4bcdaba925225d13233b580f39de57ad50a8453831b49dc17bbb1",
+      "size_bytes": 1045545,
+      "source_url": "https://test-videos.co.uk/vids/bigbuckbunny/mp4/av1/360/Big_Buck_Bunny_360_10s_1MB.mp4",
+      "license": "CC-BY-3.0（test-videos.co.uk 转码产物；上游 Blender CC-BY 3.0）",
+      "verified": null,
+      "note": "av1 640x360 10s（非 H.264/H.265，用于扩大编码覆盖面）"
+    },
+    {
+      "id": "REAL-008",
+      "filename": "bbb_av1_720.mp4",
+      "sha256": "6f26e68b1e068fd564f1544cc079679350e6c088c1a700485bc064e6f92e2298",
+      "size_bytes": 2104307,
+      "source_url": "https://test-videos.co.uk/vids/bigbuckbunny/mp4/av1/720/Big_Buck_Bunny_720_10s_2MB.mp4",
+      "license": "CC-BY-3.0（test-videos.co.uk 转码产物；上游 Blender CC-BY 3.0）",
+      "verified": null,
+      "note": "av1 1280x720 10s"
+    },
+    {
+      "id": "REAL-009",
+      "filename": "sintel_h264_360.mp4",
+      "sha256": "5c9791890691d0aa74a90269902189b7add34b545a3b9e6c709c43c721abf60f",
+      "size_bytes": 1047614,
+      "source_url": "https://test-videos.co.uk/vids/sintel/mp4/h264/360/Sintel_360_10s_1MB.mp4",
+      "license": "CC-BY-3.0（test-videos.co.uk 转码产物；上游 Sintel 为 Blender 开放电影 CC-BY 3.0）",
+      "verified": null,
+      "note": "h264 640x360 10s"
+    },
+    {
+      "id": "REAL-010",
+      "filename": "sintel_h264_720.mp4",
+      "sha256": "c6f4702b18421aeda9267d897bfccaacecaee0bdd8e6afa6b0b1ff9ee6da9b85",
+      "size_bytes": 2094185,
+      "source_url": "https://test-videos.co.uk/vids/sintel/mp4/h264/720/Sintel_720_10s_2MB.mp4",
+      "license": "CC-BY-3.0（test-videos.co.uk 转码产物；上游 Blender 开放电影 CC-BY 3.0）",
+      "verified": null,
+      "note": "h264 1280x720 10s；ffprobe 报 Referenced QT chapter track not found（元数据层观察，仅登记、不作判定依据）"
+    },
+    {
+      "id": "REAL-011",
+      "filename": "sintel_h264_1080.mp4",
+      "sha256": "7bb6472c14d40af3d78fa213303aef9b33cda2ee03268e2aeecb03048d3b5bb1",
+      "size_bytes": 1048061,
+      "source_url": "https://test-videos.co.uk/vids/sintel/mp4/h264/1080/Sintel_1080_10s_1MB.mp4",
+      "license": "CC-BY-3.0（test-videos.co.uk 转码产物；上游 Blender 开放电影 CC-BY 3.0）",
+      "verified": null,
+      "note": "h264 1920x1080 10s"
+    },
+    {
+      "id": "REAL-012",
+      "filename": "jelly_h264_360.mp4",
+      "sha256": "f30cc460706509ad28690d97bb6296a22f68e67c11b91f92bad5b6c5f4c2f6bd",
+      "size_bytes": 1047059,
+      "source_url": "https://test-videos.co.uk/vids/jellyfish/mp4/h264/360/Jellyfish_360_10s_1MB.mp4",
+      "license": "CC-BY-3.0（按 test-videos.co.uk 站点级声明登记；Jellyfish 上游原始许可本次未独立复核——见 source_notes.caveat）",
+      "verified": null,
+      "note": "h264 640x360 10s"
+    },
+    {
+      "id": "REAL-013",
+      "filename": "jelly_h264_720.mp4",
+      "sha256": "ffbb724f743fd9173dbcce55f2be605f78fd0394aa4bb3a615cd6ed6f910c254",
+      "size_bytes": 2096842,
+      "source_url": "https://test-videos.co.uk/vids/jellyfish/mp4/h264/720/Jellyfish_720_10s_2MB.mp4",
+      "license": "CC-BY-3.0（按 test-videos.co.uk 站点级声明登记；上游许可未独立复核）",
+      "verified": null,
+      "note": "h264 1280x720 10s"
+    },
+    {
+      "id": "REAL-014",
+      "filename": "jelly_h264_1080.mp4",
+      "sha256": "3762782efe41aa95912ac91dd04433942a3bd96f71f30e8d430aaaf8e9a0bd12",
+      "size_bytes": 1048435,
+      "source_url": "https://test-videos.co.uk/vids/jellyfish/mp4/h264/1080/Jellyfish_1080_10s_1MB.mp4",
+      "license": "CC-BY-3.0（按 test-videos.co.uk 站点级声明登记；上游许可未独立复核）",
+      "verified": null,
+      "note": "h264 1920x1080 10s"
+    },
+    {
+      "id": "REAL-015",
+      "filename": "jelly_h265_360.mp4",
+      "sha256": "556b7a0bdadc234101b6860f8063e18f1237ea4ca9873de42f37da93cc1ba1e9",
+      "size_bytes": 1051163,
+      "source_url": "https://test-videos.co.uk/vids/jellyfish/mp4/h265/360/Jellyfish_360_10s_1MB.mp4",
+      "license": "CC-BY-3.0（按 test-videos.co.uk 站点级声明登记；上游许可未独立复核）",
+      "verified": null,
+      "note": "hevc 640x360 10s"
+    },
+    {
+      "id": "REAL-016",
+      "filename": "jelly_h265_720.mp4",
+      "sha256": "c466c1468be1c86f9ee581d99ee0c030b2e07f69fdafa8bdb48cd9a89b257eb7",
+      "size_bytes": 1058700,
+      "source_url": "https://test-videos.co.uk/vids/jellyfish/mp4/h265/720/Jellyfish_720_10s_1MB.mp4",
+      "license": "CC-BY-3.0（按 test-videos.co.uk 站点级声明登记；上游许可未独立复核）",
+      "verified": null,
+      "note": "hevc 1280x720 10s"
+    },
+    {
+      "id": "REAL-017",
+      "filename": "sintel_trailer_480p.mp4",
+      "sha256": "b670602fa00934ca27c4351bb0efe7ea7a07fae57284e44226025eeed7c51254",
+      "size_bytes": 4372373,
+      "source_url": "https://download.blender.org/durian/trailer/sintel_trailer-480p.mp4",
+      "license": "CC-BY-3.0（Blender 开放电影 Sintel 预告片原件）",
+      "verified": null,
+      "note": "h264 854x480 + aac，52.2s；与 REAL-021（media.w3.org 镜像）逐字节相同，互为下载完整性佐证"
+    },
+    {
+      "id": "REAL-018",
+      "filename": "sintel_trailer_720p.mp4",
+      "sha256": "cb0fe73fc0a7d543459996c0cdab730997e6eac1013d3ede18796f777cb7f273",
+      "size_bytes": 7608204,
+      "source_url": "https://download.blender.org/durian/trailer/sintel_trailer-720p.mp4",
+      "license": "CC-BY-3.0（Blender 开放电影 Sintel 预告片原件）",
+      "verified": null,
+      "note": "h264 1280x720 + aac，52.2s"
+    },
+    {
+      "id": "REAL-019",
+      "filename": "sintel_trailer_1080p.mp4",
+      "sha256": "34bbd52a4b89fdf63c8ace50b268da26653a59508288100cd3c23de276db7931",
+      "size_bytes": 14621544,
+      "source_url": "https://download.blender.org/durian/trailer/sintel_trailer-1080p.mp4",
+      "license": "CC-BY-3.0（Blender 开放电影 Sintel 预告片原件）",
+      "verified": null,
+      "note": "h264 1920x1080 + aac，52.2s"
+    },
+    {
+      "id": "REAL-020",
+      "filename": "w3c_bunny_trailer.mp4",
+      "sha256": "b2ded9ae5a20fa36ca8cec49ef923bffb5e1a51d9e8c1f8336273d2fa9d35ff0",
+      "size_bytes": 11053871,
+      "source_url": "https://media.w3.org/2010/05/bunny/trailer.mp4",
+      "license": "CC-BY-3.0（上游 Big Buck Bunny / Blender 开放电影；media.w3.org 转载）",
+      "verified": null,
+      "note": "h264 853x480 + aac，33.0s（宽度 853 为奇数——SAR/pasp 类形态的自然样本，供 M5 复核）"
+    },
+    {
+      "id": "REAL-021",
+      "filename": "w3c_sintel_trailer.mp4",
+      "sha256": "b670602fa00934ca27c4351bb0efe7ea7a07fae57284e44226025eeed7c51254",
+      "size_bytes": 4372373,
+      "source_url": "https://media.w3.org/2010/05/sintel/trailer.mp4",
+      "license": "CC-BY-3.0（上游 Blender 开放电影 Sintel；media.w3.org 转载）",
+      "verified": null,
+      "note": "h264 854x480 + aac；sha256 与 REAL-017 相同（同一文件的镜像）——登记两条以留证据；统计去重后不重复计数"
+    },
+    {
+      "id": "REAL-022",
+      "filename": "bbb_h264_360_container_mismatch.mkv",
+      "sha256": "8d8c580e2b0e8632bcf28b8591b6d18b47d0c86b684f6fe1cd5022b4462069da",
+      "size_bytes": 957162,
+      "source_url": "https://test-videos.co.uk/vids/bigbuckbunny/mkv/360/Big_Buck_Bunny_360_10s_1MB.mkv",
+      "license": "CC-BY-3.0（test-videos.co.uk；上游 Blender CC-BY 3.0）",
+      "verified": null,
+      "note": "文件名记为 .mkv，实测 ftyp=isom（真正的容器是 MP4）——登记为『扩展名与容器不一致』观察样本；不作为 MKV 样本使用"
+    }
+  ]
 }

@@ -7,37 +7,1145 @@
       "case_id": "C1",
       "suite": "defects",
       "filename": "c1_dual_moov.mp4",
-      "sha256": "ccfa26e998ccd3a0dbb768b1413d335cb6ee421e736bed662831e58fc54ca4fe",
-      "size_bytes": 300,
+      "sha256": "f2b64a3feb72b6db2508fc61baaa98562f431a9eeacbcacb9afc4fb46021a2d6",
+      "size_bytes": 1704,
       "seed": 20261027,
+      "expect_status": "fail",
       "expected_findings": [
         "duplicate_moov"
       ],
-      "note": "复制整个 moov 盒插在第二处；期望 M1 duplicate_moov，报两处偏移"
+      "expected_offset": 1112,
+      "note": "第二份 moov 追加在文件末尾（mdat 之后）；期望 duplicate_moov 报两处偏移，首证据为第 2 处"
+    },
+    {
+      "case_id": "C1b",
+      "suite": "defects",
+      "filename": "c1b_dual_moov_adjacent.mp4",
+      "sha256": "95c52ee6b75637c29644124e2c68fe53007bd691ddf061bd728a9f70ef854564",
+      "size_bytes": 1704,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "duplicate_moov"
+      ],
+      "expected_offset": 624,
+      "note": "第二份 moov 紧贴第一份（mdat 之前）；防止实现只识别末尾追加这一种形态"
     },
     {
       "case_id": "C2",
       "suite": "defects",
       "filename": "c2_stco_out_of_mdat.mp4",
-      "sha256": "03b50577f916e714cb48f1cf20ba2311dce0d09207d6591985c6e4dcc04f6183",
-      "size_bytes": 360,
+      "sha256": "267d367dd1b149dc79625487a3030af246c408ebd6462ae80d081c645a2541b1",
+      "size_bytes": 1112,
       "seed": 20261027,
+      "expect_status": "fail",
       "expected_findings": [
         "stco_out_of_mdat"
       ],
-      "note": "单个 chunk offset 指向 mdat 载荷之外"
+      "expected_offset": 620,
+      "note": "chunk offset 指向文件尾之外；证据在 stco 条目字节上（条目号 + 目标区间 vs mdat 区间）"
+    },
+    {
+      "case_id": "C2b",
+      "suite": "defects",
+      "filename": "c2b_stco_points_at_moov.mp4",
+      "sha256": "cf35ec4ad215d52a1b40f9d384913ceb8669842a016796ca4915142dcdc90f34",
+      "size_bytes": 1112,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "stco_out_of_mdat"
+      ],
+      "expected_offset": 620,
+      "note": "chunk offset 落在 moov 区间（文件内、非 mdat 载荷）——同样算越界（docs/rules.md §M1 反例说明）"
+    },
+    {
+      "case_id": "C2c",
+      "suite": "defects",
+      "filename": "c2c_stco_tail_truncated.mp4",
+      "sha256": "13ae0c1b56dd6ad942c12ab118a365c8ce8963248361d072dc1fc303a5ec3d92",
+      "size_bytes": 1112,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "stco_out_of_mdat"
+      ],
+      "expected_offset": 620,
+      "note": "偏移起点在 mdat 内，但 offset + 样本长度越过 mdat 载荷尾部（被尾部截断形态）"
+    },
+    {
+      "case_id": "C2d",
+      "suite": "defects",
+      "filename": "c2d_co64_huge_offset.mp4",
+      "sha256": "04304e03c99fff8c45dff906ec826352e99e960befe381b676e0dfb331c86697",
+      "size_bytes": 1116,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "stco_out_of_mdat"
+      ],
+      "expected_offset": 620,
+      "note": "co64 巨型偏移（2^40）——覆盖 64 位条目路径"
     },
     {
       "case_id": "C3",
       "suite": "defects",
       "filename": "c3_truncated_mdat.mp4",
-      "sha256": "5fadc0f2fdee8a4f679fd93a04aad00742a97fd17dc05b78626618b0b40c29f0",
-      "size_bytes": 168,
+      "sha256": "277aab727d65d3c5d41e634839185722001e2776ae979babf11c5ab84d489547",
+      "size_bytes": 1112,
       "seed": 20261027,
+      "expect_status": "fail",
       "expected_findings": [
         "truncated_mdat"
       ],
-      "note": "声明 mdat size 大于实际剩余字节"
+      "expected_offset": 624,
+      "note": "mdat 声明 size 大于实际剩余字节；报声明 vs 实际（证据 = mdat size 字段）"
+    },
+    {
+      "case_id": "C3b",
+      "suite": "defects",
+      "filename": "c3b_cut_tail.mp4",
+      "sha256": "31d823c2bf09c373765076699decf33d51d41eda805e7ee323ba305f07431ff3",
+      "size_bytes": 1048,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "truncated_mdat"
+      ],
+      "expected_offset": 624,
+      "note": "文件尾被砍 64 字节（size 字段合法、可读字节不足）——与 C3 仅成因不同"
+    },
+    {
+      "case_id": "C4a",
+      "suite": "defects",
+      "filename": "c4a_duration_2x_mvhd.mp4",
+      "sha256": "1831be3ea3424b873afce5cc36595e92229206df09c1d1d26c25fbbfd2294ab8",
+      "size_bytes": 1112,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "duration_mismatch"
+      ],
+      "expected_offset": 64,
+      "note": "mvhd.duration = 2×实际（S7 类 2× 时长）；报三口径原值与差值（1 tick 容差之外）"
+    },
+    {
+      "case_id": "C4a2",
+      "suite": "defects",
+      "filename": "c4a2_duration_2x_tkhd.mp4",
+      "sha256": "0d0b7e5905fe4bfdfd7b0dd504f7ae1d6ceb9e083817bf3532aace26fcc87e07",
+      "size_bytes": 1112,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "duration_mismatch"
+      ],
+      "expected_offset": 184,
+      "note": "只有 tkhd.duration 是 2×（mvhd 正确）——证明实现不只看 mvhd"
+    },
+    {
+      "case_id": "C4a3",
+      "suite": "defects",
+      "filename": "c4a3_duration_short_mvhd.mp4",
+      "sha256": "ebb7cd3b60830c453bb0d2e92045ae16600e1966503f93964f5ca92c76fa3525",
+      "size_bytes": 1112,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "duration_mismatch"
+      ],
+      "expected_offset": 64,
+      "note": "mvhd.duration 比实际短 500 tick（小差值 \u003e 1 tick 容差即 fail）"
+    },
+    {
+      "case_id": "C4b",
+      "suite": "defects",
+      "filename": "c4b_elst_overrun.mp4",
+      "sha256": "96ad1fb795843a1198c7bde01ba4b8e73c10d1ab23368c66c068c34269409048",
+      "size_bytes": 1148,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "duration_mismatch",
+        "first_pts_outside_media"
+      ],
+      "expected_offset": 276,
+      "note": "elst 起点后移到 media_time=3000（首帧 PTS=0 不在区间内）+ Σelst(1500ms) \u003e 声明轨道时长(1000ms)（负剩余时长的无符号等价形态；**未写任何负数字段**）"
+    },
+    {
+      "case_id": "C5",
+      "suite": "defects",
+      "filename": "c5_zero_duration_entry.mp4",
+      "sha256": "e7ab54b2560741ae94fa5009d57863b42468f3da0f1b897f9a4b88cd2dc8bc1e",
+      "size_bytes": 1128,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "zero_duration_entry",
+        "vfr_detected"
+      ],
+      "expected_offset": 560,
+      "note": "stts 第 2 条 duration=0（多个样本落在同一时刻）；按 data/README §5.4 报 fail + 条目号；同轨 stts 条目数 3 → 依 §5.5 同时落 vfr_detected（gray，二者并列不互斥）"
+    },
+    {
+      "case_id": "C5b",
+      "suite": "defects",
+      "filename": "c5b_tfdt_regression.mp4",
+      "sha256": "ce8be3e2b57d1fccb41330d268bc0a35b144a554f5cbc8a18ea1747de957cae0",
+      "size_bytes": 2264,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "tfdt_regression"
+      ],
+      "expected_offset": 1512,
+      "note": "分片 1 tfdt=90000、分片 2 tfdt=30000（字面判据 tfdt[k] \u003c tfdt[k-1] 命中）；报分片序号"
+    },
+    {
+      "case_id": "C5c",
+      "suite": "defects",
+      "filename": "c5c_tfdt_v1_regression.mp4",
+      "sha256": "d78c056a2f92d34f662c019ec60bea03d9321a0836099d368ef7c28017c3ed45",
+      "size_bytes": 2272,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "tfdt_regression"
+      ],
+      "expected_offset": 1516,
+      "note": "tfdt version=1（64 位）同样回退——覆盖分宽读取路径"
+    },
+    {
+      "case_id": "C6",
+      "suite": "defects",
+      "filename": "c6_priming_undeclared_1024.mp4",
+      "sha256": "7deffe35ec36b825ec6cc8aa369f97c328df17da1b745a62a8321ee2a5db2408",
+      "size_bytes": 1000,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "priming_undeclared"
+      ],
+      "expected_offset": 532,
+      "note": "音频轨首帧 PTS 后移 1024 样本（ctts 偏移 1024）且无 edts 裁剪；期望 M4 报出 1024"
+    },
+    {
+      "case_id": "C6b",
+      "suite": "defects",
+      "filename": "c6b_no_roll_distance.mp4",
+      "sha256": "a8b62c883474a63f69c6004575137219f95c07e17c50eba491954aaa846077f8",
+      "size_bytes": 976,
+      "seed": 20261027,
+      "expect_status": "gray",
+      "expected_findings": [
+        "no_roll_distance"
+      ],
+      "gray_reason": "no_roll_distance",
+      "expected_offset": 512,
+      "note": "AAC 轨：PTS 起点为 0、无 edts、无 sgpd/sbgp → priming 期望值不可判，落 gray（不得猜 fail）"
+    },
+    {
+      "case_id": "C6c",
+      "suite": "defects",
+      "filename": "c6c_priming_mismatch.mp4",
+      "sha256": "1f9e588b10c3029200b3bacedb3c27cb8625ca13975c2cd4d7075968fdebb886",
+      "size_bytes": 1066,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "priming_mismatch"
+      ],
+      "expected_offset": 664,
+      "note": "已用 elst 裁剪 1024，但 roll 距离 = 704 ≠ 声明的 1024（系统内部约定：roll 正数 = priming 样本数）"
+    },
+    {
+      "case_id": "C7",
+      "suite": "defects",
+      "filename": "c7_rot90_dim_conflict.mp4",
+      "sha256": "0e5ae9deeb0d3f2f6b98045ffa32fc3325de9b0f6d778f7d4d0ddbdfffbf0d5c",
+      "size_bytes": 1112,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "rotation_dimension_conflict"
+      ],
+      "expected_offset": 204,
+      "note": "matrix = +90°（0x00010000 位形）、呈现宽 \u003c 高（tkhd 1080×1920 位形）、无 pasp"
+    },
+    {
+      "case_id": "C7b",
+      "suite": "defects",
+      "filename": "c7b_rot270_dim_conflict.mp4",
+      "sha256": "aa4b1136c45253638f2efe224e6f1f8388adb2919ed792c5e7bdcece34fb8ebe",
+      "size_bytes": 1112,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "rotation_dimension_conflict"
+      ],
+      "expected_offset": 204,
+      "note": "matrix = -90°（270°）同冲突——覆盖负向旋转"
+    },
+    {
+      "case_id": "D1",
+      "suite": "defects",
+      "filename": "d1_matrix_shear.mp4",
+      "sha256": "d1f8b6339cc838d76d8389a02d09b00a92d5f5408a48301c2ca97f92809e5b39",
+      "size_bytes": 1112,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "matrix_not_orthogonal"
+      ],
+      "expected_offset": 204,
+      "note": "matrix 含剪切项（行点积 ≠ 1 超容差）——整数正交性检查用；不得用浮点近似"
+    },
+    {
+      "case_id": "D2",
+      "suite": "defects",
+      "filename": "d2_colr_multi_instance.mp4",
+      "sha256": "ea2cdce2156af1142d8b6dced213cdbe9e06b8579bbfba0206bb441552340e74",
+      "size_bytes": 1194,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "colr_multi_instance"
+      ],
+      "expected_offset": 532,
+      "note": "两个 colr（bt709 → bt2020）+ 完整 mdcv/clli；多实例必须按文件内顺序全列，不取第一个"
+    },
+    {
+      "case_id": "E1",
+      "suite": "defects",
+      "filename": "e1_media_rate_not_one.mp4",
+      "sha256": "83eed5b3271d5d43060395654f6cb6ee20491020bd051d69ca34e4d1318ce64c",
+      "size_bytes": 1160,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "elst_item_rate_not_one"
+      ],
+      "expected_offset": 292,
+      "note": "elst[1].media_rate = 2.0（0x00020000）；报条目号 1（按文件内顺序、不排序、不折算）"
+    },
+    {
+      "case_id": "E2",
+      "suite": "defects",
+      "filename": "e2_empty_edit.mp4",
+      "sha256": "6ab14d6f7ade96adb2a56a008d2f1a98c1b546eee98d3757f88f644919659751",
+      "size_bytes": 1160,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "duration_mismatch"
+      ],
+      "expected_offset": 276,
+      "note": "空 edit（media_time=-1）贡献 500ms 延迟但 mvhd 未计入（mvhd=1000ms）→ 三口径互斥；empty_edit 是否单独 fail 由 M3 定义，本条不预判（docs/rules.md：空 edit 本身是信息）"
+    },
+    {
+      "case_id": "E3",
+      "suite": "defects",
+      "filename": "e3_elst_order_suspect.mp4",
+      "sha256": "0a991bc58d7e16444063e755de227933ee11c6706cd42aab4d58a7c9730ee84e",
+      "size_bytes": 1160,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "elst_item_order_suspect"
+      ],
+      "expected_offset": 276,
+      "note": "elst[0] media_time=45000、elst[1] media_time=0 → 首帧 PTS=0 落在第 1 段而非第 0 段（次序可疑）；本条不预判 first_pts_outside_media 的区间口径（首段 vs 并集）"
+    },
+    {
+      "case_id": "F1",
+      "suite": "defects",
+      "filename": "f1_duration_unknown.mp4",
+      "sha256": "4cce1b63f04cada9a3a15a152c011e48b137a4119b8667a2b13d366ffb9623e0",
+      "size_bytes": 2024,
+      "seed": 20261027,
+      "expect_status": "gray",
+      "expected_findings": [
+        "duration_unknown"
+      ],
+      "gray_reason": "duration_unknown",
+      "expected_offset": 32,
+      "note": "分片 + mvhd.duration=0 + trun 未写 sample_duration + 无 mehd → 三口径缺一方，落 gray"
+    },
+    {
+      "case_id": "K1-moov",
+      "suite": "controls",
+      "filename": "k1_single_moov.mp4",
+      "sha256": "bbd021f4a563cff0a6ccb2bc0fa2d22626ddc063e4a9aa09b58dd7c690fbf2fc",
+      "size_bytes": 1112,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "单个 moov + 单个 mdat（C1 的合法近邻）"
+    },
+    {
+      "case_id": "K10-empty-edit",
+      "suite": "controls",
+      "filename": "k10_empty_edit_consistent.mp4",
+      "sha256": "fbb428bb585d4af189765b367cc217244d57c6cf6693044e0ec1c98cf85bbad4",
+      "size_bytes": 1160,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "空 edit（延迟 500ms）+ 显示时长已计入（mvhd=1500）→ 三口径一致，不报"
+    },
+    {
+      "case_id": "K11-colr-hdr",
+      "suite": "controls",
+      "filename": "k11_colr_hdr_complete.mp4",
+      "sha256": "72069dbdc81ef1fedadb86c4ccce065bed3e5ef081062227a9bbf9c0c1603751",
+      "size_bytes": 1175,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "单个 bt2020 colr + 完整 mdcv/clli 且量程合法（D2/hdr gray 的合法近邻）"
+    },
+    {
+      "case_id": "K12-matrix-ortho",
+      "suite": "controls",
+      "filename": "k12_matrix_ortho_identity.mp4",
+      "sha256": "bbd021f4a563cff0a6ccb2bc0fa2d22626ddc063e4a9aa09b58dd7c690fbf2fc",
+      "size_bytes": 1112,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "单位 matrix（行列点积精确 = 1）——正交容差下不报"
+    },
+    {
+      "case_id": "K13-opus",
+      "suite": "controls",
+      "filename": "k13_opus_priming_trimmed.mp4",
+      "sha256": "57d00d2796de2c8c8f7248e2499192a15bf91e058cd144641cdd77f70fe9274a",
+      "size_bytes": 992,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "Opus 轨：elst 裁剪 312 + dOps.preSkip=312 一致（已知编码集内，不误报）"
+    },
+    {
+      "case_id": "K14-co64",
+      "suite": "controls",
+      "filename": "k14_co64_valid.mp4",
+      "sha256": "28c09b288bcd2dc0797375522f16aad81308b81a8c0df21bca4c0aff5d056744",
+      "size_bytes": 1116,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "co64 指向 mdat 载荷内（64 位条目合法路径）"
+    },
+    {
+      "case_id": "K15-bframes",
+      "suite": "controls",
+      "filename": "k15_video_bframes.mp4",
+      "sha256": "31513aa582f2ed326b54e2af048e890668905c6ccbd8528ef086e175efddfe07",
+      "size_bytes": 1168,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "含 B 帧的 ctts v0（正偏移乱序）——PTS 乱序不得当 DTS 回退（M4 回归集的最小前哨）"
+    },
+    {
+      "case_id": "K2-stco",
+      "suite": "controls",
+      "filename": "k2_stco_in_mdat.mp4",
+      "sha256": "e76cae74b80bbd7489a40a87c276ad6534e95dacdae46c109ff374b0360a6378",
+      "size_bytes": 1592,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "stco 指向 mdat 载荷内且不越尾（C2 的合法近邻）"
+    },
+    {
+      "case_id": "K3-mdat",
+      "suite": "controls",
+      "filename": "k3_mdat_size0_tail.mp4",
+      "sha256": "b026df696982cd2ff52b9c35b2bf837c2afc88b2f4d26fe302ad68cf65e930c4",
+      "size_bytes": 1112,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "mdat 用 size==0（到文件尾）合法形态（C3 的合法近邻）"
+    },
+    {
+      "case_id": "K3b-largesize",
+      "suite": "controls",
+      "filename": "k3b_mdat_largesize.mp4",
+      "sha256": "b0d139f9e858afbecf2de5fd9ae78f0f21d882f472dffaf975174184014686aa",
+      "size_bytes": 1120,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "mdat 用 size==1 + 64 位 largesize 合法形态（C3 的第二合法形态）"
+    },
+    {
+      "case_id": "K4-duration",
+      "suite": "controls",
+      "filename": "k4_duration_aligned.mp4",
+      "sha256": "bbd021f4a563cff0a6ccb2bc0fa2d22626ddc063e4a9aa09b58dd7c690fbf2fc",
+      "size_bytes": 1112,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "mvhd/tkhd/Σstts 三口径对齐（1 tick 容差内）（C4 的合法近邻）"
+    },
+    {
+      "case_id": "K5-dts",
+      "suite": "controls",
+      "filename": "k5_monotonic_dts.mp4",
+      "sha256": "bbd021f4a563cff0a6ccb2bc0fa2d22626ddc063e4a9aa09b58dd7c690fbf2fc",
+      "size_bytes": 1112,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "DTS 严格单调、单 stts 条目（C5 的合法近邻；不触发 vfr_detected）"
+    },
+    {
+      "case_id": "K6-priming",
+      "suite": "controls",
+      "filename": "k6_priming_trimmed.mp4",
+      "sha256": "750eb2a031c937a048043a191349448119f24202ea2e3561945a5342630f5f04",
+      "size_bytes": 1066,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "已用 elst 正确裁剪 1024 且 roll 距离一致（C6 的合法近邻）"
+    },
+    {
+      "case_id": "K7-portrait",
+      "suite": "controls",
+      "filename": "k7_portrait_rot90_pasp.mp4",
+      "sha256": "5068d4637d8c111dc5811a903483264ce7ed69eb57e3d2bf3e78c6b79ece118b",
+      "size_bytes": 1128,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "正常竖屏：matrix=90 + 存储 1080×1920 + pasp 说明（C7 的合法近邻）"
+    },
+    {
+      "case_id": "K8-rot180",
+      "suite": "controls",
+      "filename": "k8_rot180_landscape.mp4",
+      "sha256": "81978c448d9ec6c28ab3a4d51f7a7789e6d6813e309a184aa0c1ee0a93622e7f",
+      "size_bytes": 1112,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "matrix=180° 正交旋转、横屏宽 \u003e 高、无 pasp——180° 不进入宽高互换规则"
+    },
+    {
+      "case_id": "K9-frag",
+      "suite": "controls",
+      "filename": "k9_frag_ordered_tfdt.mp4",
+      "sha256": "2e2bb06e6ed58964a2826f07d271d15d94b8405e482c632097783970445d29d7",
+      "size_bytes": 2264,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "分片 tfdt 正确递增 + trun 带 sample_duration（C5b/F1 的合法近邻）"
+    },
+    {
+      "case_id": "M3R01",
+      "suite": "m3-regression",
+      "filename": "m3r01_avc1_90000.mp4",
+      "sha256": "47e41f2a5fb0ed0269b77cb89c521ee81254271bad81d69be9f0b7bce11d0754",
+      "size_bytes": 1112,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "正常 avc1 文件：timescale=90000、30 帧、ctts=0 条（无 ctts（PTS=DTS 同序））——DTS 单调、误报必须为 0"
+    },
+    {
+      "case_id": "M3R02",
+      "suite": "m3-regression",
+      "filename": "m3r02_avc1_90000.mp4",
+      "sha256": "476de6ecbffce831533229a5d262a9bd93ac59545b18ce358eae528752a44f99",
+      "size_bytes": 1592,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "正常 avc1 文件：timescale=90000、60 帧、ctts=0 条（无 ctts（PTS=DTS 同序））——DTS 单调、误报必须为 0"
+    },
+    {
+      "case_id": "M3R03",
+      "suite": "m3-regression",
+      "filename": "m3r03_avc1_600.mp4",
+      "sha256": "50f2ce83259d8c0eac245dd01abeeb43b6f4454edfe8180fc62e8a7016b003c4",
+      "size_bytes": 1112,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "正常 avc1 文件：timescale=600、30 帧、ctts=0 条（无 ctts（PTS=DTS 同序））——DTS 单调、误报必须为 0"
+    },
+    {
+      "case_id": "M3R04",
+      "suite": "m3-regression",
+      "filename": "m3r04_avc1_30000.mp4",
+      "sha256": "53ee69c12bb5f7f4fb3eeacb2987440e29186ef9a482669a778cb4e0f87e8d8f",
+      "size_bytes": 1112,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "正常 avc1 文件：timescale=30000、30 帧、ctts=0 条（无 ctts（PTS=DTS 同序））——DTS 单调、误报必须为 0"
+    },
+    {
+      "case_id": "M3R05",
+      "suite": "m3-regression",
+      "filename": "m3r05_avc1_24000.mp4",
+      "sha256": "e3b4b9111e511b76cb80128e3736da550b8c132a77e8767011769d17cab946f8",
+      "size_bytes": 1016,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "正常 avc1 文件：timescale=24000、24 帧、ctts=0 条（无 ctts（PTS=DTS 同序））——DTS 单调、误报必须为 0"
+    },
+    {
+      "case_id": "M3R06",
+      "suite": "m3-regression",
+      "filename": "m3r06_avc1_1000.mp4",
+      "sha256": "b76c0e40265a020e1b2299f3c9a9358dc8e9c3ef25951ca68852ff1dc79933ff",
+      "size_bytes": 1112,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "正常 avc1 文件：timescale=1000、30 帧、ctts=0 条（无 ctts（PTS=DTS 同序））——DTS 单调、误报必须为 0"
+    },
+    {
+      "case_id": "M3R07",
+      "suite": "m3-regression",
+      "filename": "m3r07_hvc1_90000.mp4",
+      "sha256": "af2e004ea7d11f8e3e0712aba80d24fb6de36906122f7ac87bd824833409646b",
+      "size_bytes": 1119,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "正常 hvc1 文件：timescale=90000、30 帧、ctts=0 条（无 ctts（PTS=DTS 同序））——DTS 单调、误报必须为 0"
+    },
+    {
+      "case_id": "M3R08",
+      "suite": "m3-regression",
+      "filename": "m3r08_hvc1_90000.mp4",
+      "sha256": "48cf69362ed96903769702746fad1cfde5fe1aaddbe807d2a5e4c17caaeffd32",
+      "size_bytes": 1599,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "正常 hvc1 文件：timescale=90000、60 帧、ctts=0 条（无 ctts（PTS=DTS 同序））——DTS 单调、误报必须为 0"
+    },
+    {
+      "case_id": "M3R09",
+      "suite": "m3-regression",
+      "filename": "m3r09_hvc1_30000.mp4",
+      "sha256": "273e5b1eeda73234bce164e0a7c1c0922a46e01c7cdd692099b97ce3cbd8debf",
+      "size_bytes": 1599,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "正常 hvc1 文件：timescale=30000、60 帧、ctts=0 条（无 ctts（PTS=DTS 同序））——DTS 单调、误报必须为 0"
+    },
+    {
+      "case_id": "M3R10",
+      "suite": "m3-regression",
+      "filename": "m3r10_hvc1_24000.mp4",
+      "sha256": "f73a787566a1b9c6e2a9a27f2d3bd99c7499433f3e9ded0cf28fcafe75114074",
+      "size_bytes": 1407,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "正常 hvc1 文件：timescale=24000、48 帧、ctts=0 条（无 ctts（PTS=DTS 同序））——DTS 单调、误报必须为 0"
+    },
+    {
+      "case_id": "M3R11",
+      "suite": "m3-regression",
+      "filename": "m3r11_hvc1_15360.mp4",
+      "sha256": "e7135d518a095eef803c701332d5ca620d5f9967da834f8f8b9c778c4deacb8d",
+      "size_bytes": 1119,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "正常 hvc1 文件：timescale=15360、30 帧、ctts=0 条（无 ctts（PTS=DTS 同序））——DTS 单调、误报必须为 0"
+    },
+    {
+      "case_id": "M3R12",
+      "suite": "m3-regression",
+      "filename": "m3r12_hvc1_600.mp4",
+      "sha256": "b251e0e096671cafbe2b981cca8bf1dc875bd2350da3500b84bdb35f29ff9d92",
+      "size_bytes": 1119,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "正常 hvc1 文件：timescale=600、30 帧、ctts=0 条（无 ctts（PTS=DTS 同序））——DTS 单调、误报必须为 0"
+    },
+    {
+      "case_id": "M3R13",
+      "suite": "m3-regression",
+      "filename": "m3r13_avc1_90000.mp4",
+      "sha256": "7ae0b6efde9c2307f872da664b454f198d7d575334e1d8590c341e7f92d79f26",
+      "size_bytes": 1168,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "正常 avc1 文件：timescale=90000、30 帧、ctts=5 条（v0 正偏移乱序（B 帧））——DTS 单调、误报必须为 0"
+    },
+    {
+      "case_id": "M3R14",
+      "suite": "m3-regression",
+      "filename": "m3r14_avc1_90000.mp4",
+      "sha256": "cf61ed18da3475aa9028b2d3de0b39f867754e9589a08ded7b50975b7325f564",
+      "size_bytes": 1648,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "正常 avc1 文件：timescale=90000、60 帧、ctts=5 条（v0 正偏移乱序（B 帧））——DTS 单调、误报必须为 0"
+    },
+    {
+      "case_id": "M3R15",
+      "suite": "m3-regression",
+      "filename": "m3r15_avc1_30000.mp4",
+      "sha256": "f0bb17983155645d1d808f160fe051a6f60bfc1cf199ea67c80ef152fed12e87",
+      "size_bytes": 1168,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "正常 avc1 文件：timescale=30000、30 帧、ctts=5 条（v0 正偏移乱序（B 帧））——DTS 单调、误报必须为 0"
+    },
+    {
+      "case_id": "M3R16",
+      "suite": "m3-regression",
+      "filename": "m3r16_hvc1_90000.mp4",
+      "sha256": "1fce1c23727e58e6cccc3d1d2f9bc770e4bd534b414fb4fd41d73cd52dc8babb",
+      "size_bytes": 1175,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "正常 hvc1 文件：timescale=90000、30 帧、ctts=5 条（v0 正偏移乱序（B 帧））——DTS 单调、误报必须为 0"
+    },
+    {
+      "case_id": "M3R17",
+      "suite": "m3-regression",
+      "filename": "m3r17_hvc1_90000.mp4",
+      "sha256": "bcd64981fa0802362bff4408efafcf0d437980335bd8665cf66b4a605d846c07",
+      "size_bytes": 1655,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "正常 hvc1 文件：timescale=90000、60 帧、ctts=5 条（v0 正偏移乱序（B 帧））——DTS 单调、误报必须为 0"
+    },
+    {
+      "case_id": "M3R18",
+      "suite": "m3-regression",
+      "filename": "m3r18_avc1_90000.mp4",
+      "sha256": "6f72783280b47812d25b286381f33ae369a65bbf0c17ccbe446c4dfb4cf7b630",
+      "size_bytes": 1176,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "正常 avc1 文件：timescale=90000、30 帧、ctts=6 条（v1 有符号（含负偏移 = B 帧））——DTS 单调、误报必须为 0"
+    },
+    {
+      "case_id": "M3R19",
+      "suite": "m3-regression",
+      "filename": "m3r19_avc1_90000.mp4",
+      "sha256": "998fcbc6740e711e5b6c54e1b142c2aba2f296ccf343419446e7f81acbc2a05c",
+      "size_bytes": 1656,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "正常 avc1 文件：timescale=90000、60 帧、ctts=6 条（v1 有符号（含负偏移 = B 帧））——DTS 单调、误报必须为 0"
+    },
+    {
+      "case_id": "M3R20",
+      "suite": "m3-regression",
+      "filename": "m3r20_hvc1_90000.mp4",
+      "sha256": "46ec703ffdb84153f6d264000dcb1c2cb2f137edad22b83e145b638456a89051",
+      "size_bytes": 1183,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "正常 hvc1 文件：timescale=90000、30 帧、ctts=6 条（v1 有符号（含负偏移 = B 帧））——DTS 单调、误报必须为 0"
+    },
+    {
+      "case_id": "M3R21",
+      "suite": "m3-regression",
+      "filename": "m3r21_hvc1_30000.mp4",
+      "sha256": "994a0335dc117538e38ec6f59644644dfa55d20e95c7e385c04d0bb60aaee26e",
+      "size_bytes": 1183,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "正常 hvc1 文件：timescale=30000、30 帧、ctts=6 条（v1 有符号（含负偏移 = B 帧））——DTS 单调、误报必须为 0"
+    },
+    {
+      "case_id": "M3R22",
+      "suite": "m3-regression",
+      "filename": "m3r22_avc1_24000.mp4",
+      "sha256": "2a512214949aef674b6971632e9e24b1f0a418f78b13e8cb1bc6e853fd4f4e6b",
+      "size_bytes": 1072,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "正常 avc1 文件：timescale=24000、24 帧、ctts=5 条（v0 正偏移乱序（B 帧））——DTS 单调、误报必须为 0"
+    },
+    {
+      "case_id": "M3R23",
+      "suite": "m3-regression",
+      "filename": "m3r23_single_frame.mp4",
+      "sha256": "14a062452fd7a8fa7dfc7b87c829389e3e694b49841f6cd58ede426c8561a4c7",
+      "size_bytes": 648,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "单帧最小样本（样本数为 1 的边界）"
+    },
+    {
+      "case_id": "M3R24",
+      "suite": "m3-regression",
+      "filename": "m3r24_long_240_frames.mp4",
+      "sha256": "55bef5532f48bd33938d62a47b1ba11bb25d781ee88e281d88916a74f1e6c8cb",
+      "size_bytes": 4472,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "240 帧长时长（累计 DTS 大数）"
+    },
+    {
+      "case_id": "M4N1",
+      "suite": "m4",
+      "filename": "m4n1_trimmed_1024.mp4",
+      "sha256": "750eb2a031c937a048043a191349448119f24202ea2e3561945a5342630f5f04",
+      "size_bytes": 1066,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "elst 裁剪 1024 + roll=1024 一致 → 不报（K6 同构）"
+    },
+    {
+      "case_id": "M4N2",
+      "suite": "m4",
+      "filename": "m4n2_trimmed_2112.mp4",
+      "sha256": "e49f679d81c098b29c861bba412ed780fad4f8d075967323d8d8ff051e43f17b",
+      "size_bytes": 1066,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "elst 裁剪 2112 + roll=2112 一致 → 不报"
+    },
+    {
+      "case_id": "M4N3",
+      "suite": "m4",
+      "filename": "m4n3_opus_312_trimmed.mp4",
+      "sha256": "57d00d2796de2c8c8f7248e2499192a15bf91e058cd144641cdd77f70fe9274a",
+      "size_bytes": 992,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "Opus 312 已裁剪且 dOps.preSkip=312 一致 → 不报"
+    },
+    {
+      "case_id": "M4N4",
+      "suite": "m4",
+      "filename": "m4n4_video_no_edts_start0.mp4",
+      "sha256": "bbd021f4a563cff0a6ccb2bc0fa2d22626ddc063e4a9aa09b58dd7c690fbf2fc",
+      "size_bytes": 1112,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "视频轨无 edts 且起点为 0（多数正常视频形态）→ 不落 no_edts"
+    },
+    {
+      "case_id": "M4N5",
+      "suite": "m4",
+      "filename": "m4n5_audio_no_roll_start0.mp4",
+      "sha256": "a8b62c883474a63f69c6004575137219f95c07e17c50eba491954aaa846077f8",
+      "size_bytes": 976,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "AAC 无 roll 但起点为 0（无延迟可判）→ 不报、不落 gray"
+    },
+    {
+      "case_id": "M4P1",
+      "suite": "m4",
+      "filename": "m4p1_undeclared_1024.mp4",
+      "sha256": "7deffe35ec36b825ec6cc8aa369f97c328df17da1b745a62a8321ee2a5db2408",
+      "size_bytes": 1000,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "priming_undeclared"
+      ],
+      "expected_offset": 532,
+      "note": "AAC PTS 后移 1024、无 elst → 报 1024"
+    },
+    {
+      "case_id": "M4P2",
+      "suite": "m4",
+      "filename": "m4p2_undeclared_2112.mp4",
+      "sha256": "79f3f4351b9aae7ee19e49146a5963e0c080a8d9ec90c95ca5921da22cb532ad",
+      "size_bytes": 1000,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "priming_undeclared"
+      ],
+      "expected_offset": 532,
+      "note": "AAC PTS 后移 2112（常见观测值亦见 2112）、无 elst → 报 2112"
+    },
+    {
+      "case_id": "M4P3",
+      "suite": "m4",
+      "filename": "m4p3_trim_wrong_amount.mp4",
+      "sha256": "631dce4959b84c68760ab7d4ef3659a9656c08fbb0c76cf53ed8c2299284b5be",
+      "size_bytes": 1066,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "priming_mismatch"
+      ],
+      "expected_offset": 276,
+      "note": "elst 裁剪 512（少于声明的 1024）→ 声明 vs 期望不一致"
+    },
+    {
+      "case_id": "M4P4",
+      "suite": "m4",
+      "filename": "m4p4_start_trim_positive.mp4",
+      "sha256": "e4b9305dfcbdfddf5e3133c42e1e6cb578216f4fcc57bb71c07e394de2e36059",
+      "size_bytes": 1066,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "start_trim"
+      ],
+      "expected_offset": 276,
+      "note": "elst[0].media_time=1024（起始裁剪）→ start_trim 报秒值 + 样本数"
+    },
+    {
+      "case_id": "M4P5",
+      "suite": "m4",
+      "filename": "m4p5_roll_mismatch_704.mp4",
+      "sha256": "1f9e588b10c3029200b3bacedb3c27cb8625ca13975c2cd4d7075968fdebb886",
+      "size_bytes": 1066,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "priming_mismatch"
+      ],
+      "expected_offset": 664,
+      "note": "roll=704 vs 声明 1024（同 C6c，独立成组以凑 5 正例）"
+    },
+    {
+      "case_id": "M5N1",
+      "suite": "m5",
+      "filename": "m5n1_portrait_rot90_pasp.mp4",
+      "sha256": "5068d4637d8c111dc5811a903483264ce7ed69eb57e3d2bf3e78c6b79ece118b",
+      "size_bytes": 1128,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "正常竖屏（rot90 + 宽\u003e高 + pasp）"
+    },
+    {
+      "case_id": "M5N2",
+      "suite": "m5",
+      "filename": "m5n2_rot180_landscape.mp4",
+      "sha256": "81978c448d9ec6c28ab3a4d51f7a7789e6d6813e309a184aa0c1ee0a93622e7f",
+      "size_bytes": 1112,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "rot180 横屏（不进入宽高互换规则）"
+    },
+    {
+      "case_id": "M5N3",
+      "suite": "m5",
+      "filename": "m5n3_identity_matrix.mp4",
+      "sha256": "bbd021f4a563cff0a6ccb2bc0fa2d22626ddc063e4a9aa09b58dd7c690fbf2fc",
+      "size_bytes": 1112,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "单位 matrix 正交"
+    },
+    {
+      "case_id": "M5N4",
+      "suite": "m5",
+      "filename": "m5n4_colr_hdr_complete.mp4",
+      "sha256": "72069dbdc81ef1fedadb86c4ccce065bed3e5ef081062227a9bbf9c0c1603751",
+      "size_bytes": 1175,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "单 colr bt2020 + 完整 mdcv/clli 量程合法"
+    },
+    {
+      "case_id": "M5N5",
+      "suite": "m5",
+      "filename": "m5n5_pasp_square_consistent.mp4",
+      "sha256": "87895b805700d3b19f1f361f9e6c0a3099628dc04b77d42086cc926e8003b441",
+      "size_bytes": 1128,
+      "seed": 20261027,
+      "expect_status": "pass",
+      "expected_findings": null,
+      "note": "pasp 1:1（方形像素）与声明宽高比一致 → 不报 sar_dar_conflict"
+    },
+    {
+      "case_id": "M5P1",
+      "suite": "m5",
+      "filename": "m5p1_rot90_nopasp.mp4",
+      "sha256": "0e5ae9deeb0d3f2f6b98045ffa32fc3325de9b0f6d778f7d4d0ddbdfffbf0d5c",
+      "size_bytes": 1112,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "rotation_dimension_conflict"
+      ],
+      "expected_offset": 204,
+      "note": "rot90 + 宽\u003c高 + 无 pasp"
+    },
+    {
+      "case_id": "M5P2",
+      "suite": "m5",
+      "filename": "m5p2_rot270_nopasp.mp4",
+      "sha256": "aa4b1136c45253638f2efe224e6f1f8388adb2919ed792c5e7bdcece34fb8ebe",
+      "size_bytes": 1112,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "rotation_dimension_conflict"
+      ],
+      "expected_offset": 204,
+      "note": "rot270（-90）+ 宽\u003c高 + 无 pasp"
+    },
+    {
+      "case_id": "M5P3",
+      "suite": "m5",
+      "filename": "m5p3_matrix_shear.mp4",
+      "sha256": "d1f8b6339cc838d76d8389a02d09b00a92d5f5408a48301c2ca97f92809e5b39",
+      "size_bytes": 1112,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "matrix_not_orthogonal"
+      ],
+      "expected_offset": 204,
+      "note": "剪切 matrix（行点积 ≠ 1）"
+    },
+    {
+      "case_id": "M5P4",
+      "suite": "m5",
+      "filename": "m5p4_colr_multi.mp4",
+      "sha256": "ea2cdce2156af1142d8b6dced213cdbe9e06b8579bbfba0206bb441552340e74",
+      "size_bytes": 1194,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "colr_multi_instance"
+      ],
+      "expected_offset": 532,
+      "note": "两个 colr（bt709+bt2020）"
+    },
+    {
+      "case_id": "M5P5",
+      "suite": "m5",
+      "filename": "m5p5_sar_dar_conflict.mp4",
+      "sha256": "f3af58c49efd3f7b96392ac486a5e5d1cdab6d1168c7b09a1d6fa34fd1a7864d",
+      "size_bytes": 1128,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "sar_dar_conflict"
+      ],
+      "expected_offset": 532,
+      "note": "pasp 8:9 与 tkhd 声明宽高比（4:3）矛盾 → SAR/DAR 不一致"
+    },
+    {
+      "case_id": "P1",
+      "suite": "defects",
+      "filename": "p1_unknown_codec_priming.mp4",
+      "sha256": "d10866a73fa722dddfaab813d8c1e97ceea9aaee2f9c3f0b1b49ecde9eb2013d",
+      "size_bytes": 949,
+      "seed": 20261027,
+      "expect_status": "gray",
+      "expected_findings": [
+        "unknown_codec_priming"
+      ],
+      "gray_reason": "unknown_codec_priming",
+      "expected_offset": 453,
+      "note": "ac-3 编码 + 无 roll + 起点 0；编码不在已知集（AAC/Opus）→ 期望值不可判，落 gray"
+    },
+    {
+      "case_id": "S1",
+      "suite": "defects",
+      "filename": "s1_child_overruns_parent.mp4",
+      "sha256": "acd4f93ed633dccef82d76d755a7fc71049542c33e7ee7e98ad29679597e59ba",
+      "size_bytes": 1136,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "child_overruns_parent"
+      ],
+      "expected_offset": 624,
+      "note": "moov 尾部 udta 子盒声明长度大于父盒剩余——子盒区间 ⊄ 父盒载荷"
+    },
+    {
+      "case_id": "S2",
+      "suite": "defects",
+      "filename": "s2_duplicate_mdat.mp4",
+      "sha256": "32a1e6d995f3e3c3eafac1554592b59c938d8ac7c6ffdd96ba367235bc4f1a88",
+      "size_bytes": 1120,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "duplicate_mdat"
+      ],
+      "expected_offset": 1112,
+      "note": "两个 mdat（第二个合法空盒）；按 plan/03 §二 duplicate_mdat = fail"
+    },
+    {
+      "case_id": "S3",
+      "suite": "defects",
+      "filename": "s3_deep_nest_over_cap.mp4",
+      "sha256": "67f5718f025c720ff25c4d0fcb53b8d8849dbfa6034d8b0cd7bbf5c53b968cd2",
+      "size_bytes": 1920,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "max_depth_exceeded"
+      ],
+      "expected_offset": 624,
+      "note": "moov 下嵌 100 层 udta（超过 MaxDepth=64）；防御样本，必须不 panic，且深度上限可判"
+    },
+    {
+      "case_id": "T1",
+      "suite": "defects",
+      "filename": "t1_timescale_suspect.mp4",
+      "sha256": "1641025ca9a8cabb6ee967484e27a79c808b1f5088c5eb8a72ce93b347381e3a",
+      "size_bytes": 1112,
+      "seed": 20261027,
+      "expect_status": "gray",
+      "expected_findings": [
+        "timescale_suspect"
+      ],
+      "gray_reason": "timescale_suspect",
+      "expected_offset": 276,
+      "note": "视频轨 timescale = 30（\u003c 100 阈值，且未溢出）→ gray timescale_suspect（不是 fail）"
+    },
+    {
+      "case_id": "T2",
+      "suite": "defects",
+      "filename": "t2_dts_overflow_risk.mp4",
+      "sha256": "d6f40955f0dbe407181131e683b0d3d87ac06e48961f94a7828f7ec54ea9d32c",
+      "size_bytes": 664,
+      "seed": 20261027,
+      "expect_status": "fail",
+      "expected_findings": [
+        "dts_overflow_risk"
+      ],
+      "expected_offset": 552,
+      "note": "stts 累计越过 32 位（2×0xFFFFFF00 ≈ 2^32）→ fail 并报越界位置"
     }
   ]
 }

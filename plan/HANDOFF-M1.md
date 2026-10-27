@@ -17,14 +17,14 @@
 | 计划套件 `plan/00`–`06` | ✅ | 7 份齐；`LAYOUT.SECTIONS` 7/7 |
 | `data/README.md` 台账（口径唯一源） | ✅ | §5 已定义 tick 容差 / 阈值 / gray 闭集 / 退出码 / 四元组 |
 | 代码骨架 | ✅ | `cmd/`、`internal/{policy,report,isobmff,rules,archtest}`、`tools/fixture-gen` |
-| 两道门 + 变异验证 | ✅ | `check-sprint-layout`（11 判据）/ `check-desensitized`（4 规则）/ `verify-layout-gate`（20 组） |
+| 两道门 + 变异验证 | ✅ | `check-sprint-layout`（11 判据）/ `check-desensitized`（4 规则）/ `verify-layout-gate`（21 组） |
 | CI 工作流 | 🟡 已入库**未首推** | `.github/workflows/ci.yml`；**不得**写成"CI 绿" |
 | 本地等价校验 | ✅ | `node tools/tasks.mjs all` → exit 0（29 PASS） |
 | 干净克隆 + tarball 双形态 | ✅ | clone 全绿；`git archive` 解包后门全绿、`check-ignore-rules` 显式 SKIP |
 | 安全扫描 | ✅ 0 发现 | 静态扫描（`static_only_no_runtime_execution`） |
-| **M1 实现** | ⬜ **未开工** | 本文件即其入口 |
+| **M1 实现** | ✅ **已完成** | 见 §六 DoD 结果；产物 = 92 例夹具 + 22 条真实样本登记 |
 
-提交：`666deaa 骨架期：计划套件、方法论装订、代码骨架与两道门`。
+提交：`666deaa 骨架期：计划套件、方法论装订、代码骨架与两道门`（M1 收尾提交见 `git log` 末条）。
 
 ---
 
@@ -40,7 +40,7 @@
 | F6 | `fixtures/out/manifest.json` **必须入库**；`fixtures/out/*.mp4` 不入库 | `.gitignore` 里只能写 `/out/`（顶层），写成 `out/` 会把 manifest 一起忽略（已实测踩过） |
 | F7 | 变异验证脚本会**临时改写仓库文件**，靠 `compose` 回滚 | 手工跑前先 `cp` 备份；若中途 `Ctrl-C` 可能残留（详见 `plan/06 §六 B2`） |
 | F8 | `tools/fixture-gen` **禁** `time` / `os.Getenv` / `os/exec` / `math/rand`（`TestGeneratorHasNoClockEnvOrExec`） | 想"用 ffmpeg 造样本"就撞 D4：真值字节不得依赖工具链版本 |
-| F9 | 骨架期 `manifest.json` 只有 **C1–C3 三例** | M1 补齐后必须重生成并 commit，否则 `--check` 与 CI 会不一致 |
+| F9 | 骨架期 `manifest.json` 只有 **C1–C3 三例**（**M1 收尾后已重生成为 92 例**） | 任何生成器改动后必须重生成并 commit，否则 `--check` 与 CI 会不一致 |
 | F10 | 文档里**不得**出现 `make <target>` 形式（本机无 make） | 可执行等价物一律 `node tools/tasks.mjs <target>` |
 
 ---
@@ -102,17 +102,22 @@
 
 ---
 
-## 六、DoD 逐项 checklist（M1，取自 `plan/00 §五`）
+## 六、DoD 逐项 checklist（M1，取自 `plan/00 §五`）—— ✅ 收尾已验（2026-10-27）
 
-- [ ] C1–C7 **七类**各有 ≥1 个可复现样本（当前 C1–C3 已达成，C4a/C4b/C5/C6/C7 待补）
-- [ ] 同 `--seed` 双跑**逐字节一致**（`node tools/tasks.mjs check-fixtures`）
-- [ ] 生成器**零外部进程**（`TestGeneratorHasNoClockEnvOrExec` + 无 `os/exec`）
-- [ ] 控制组合法样本全 `pass`（含 **M3 ≥20 含 B 帧**、M4/M5 正反例各 5）
-- [ ] `manifest.json` 入库且 `--check` 与入库版本一致
-- [ ] `data/real-samples.json` ≥20 条（含 `license`；未复跑 `verified: null`）
-- [ ] `docs/fixture-pools.md` 状态列与实现一致（**不得**写"判定已实现"）
-- [ ] 三处状态副本同提交翻 ✅ + `plan/HANDOFF-M2.md` 已写
-- [ ] `node tools/tasks.mjs all` 全绿
+- [x] C1–C7 **七类**各有 ≥1 个可复现样本 — C1/C1b、C2–C2d、C3/C3b、C4a/C4a2/C4a3/C4b、C5/C5b/C5c、C6/C6b/C6c、C7/C7b；共 92 例
+- [x] 同 `--seed` 双跑**逐字节一致** — `node tools/tasks.mjs check-fixtures` → 「92 例与入库 manifest 逐字节一致」
+- [x] 生成器**零外部进程** — `TestGeneratorHasNoClockEnvOrExec`（AST/import 扫描）；`go test ./tools/fixture-gen/...` 绿
+- [x] 控制组合法样本全 `pass` — 构造侧 50 例 `expect_status=pass`；M3 回归 24（含 B 帧 v0/v1）、M4 5+5、M5 5+5、通用 controls 16。**运行时误报 0 待 M2–M5 复核**
+- [x] `manifest.json` 入库且 `--check` 与入库版本一致 — 92 例（defects 32 / controls 16 / m3-regression 24 / m4 10 / m5 10）
+- [x] `data/real-samples.json` ≥20 条（含 `license`；未复跑 `verified: null`）— 22 条，全部 `verified: null`
+- [x] `docs/fixture-pools.md` 状态列与实现一致（**不写**"判定已实现"）— C1–C7 + 三组对照均标「构造器✅ / 判定待 Mx」
+- [x] 三处状态副本同提交翻 ✅ + `plan/HANDOFF-M2.md` 已写
+- [x] `node tools/tasks.mjs all` 全绿
+
+**M1 期间发现并已修的脚本缺陷**：`tools/verify-layout-gate.mjs` 的变异靶子原先把 M1 写死
+（`flipM1()` / `hide("plan/HANDOFF-M1.md")`），M1 真收尾翻 ✅ 后**自崩**（正是文件头警告的
+"靶子依赖进度状态"）。已改为**从仓库状态现算**（当前棒 / 最后一个 ✅ / 发布里程碑），
+任一进度下都指得到真实可变的行与文件；本机复跑 21/21 全绿。详见 `plan/06 §六 B8`。
 
 ---
 
@@ -121,7 +126,7 @@
 ```bash
 # 门（新对话第一件事）
 node tools/tasks.mjs gates              # 布局门 + 脱敏门
-node tools/tasks.mjs verify-gates       # 两门自己的变异验证（20 组，逐组必须按预期变红）
+node tools/tasks.mjs verify-gates       # 两门自己的变异验证（21 组，逐组必须按预期变红）
 
 # 夹具
 node tools/tasks.mjs fixtures           # 生成 fixtures/out + manifest.json

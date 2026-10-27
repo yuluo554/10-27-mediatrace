@@ -19,14 +19,15 @@
 
 | 里程碑 | 内容 | 状态 |
 | --- | --- | --- |
-| **M1** | 数据先行（C1–C7 夹具 + 真值） | ⬜ 未开工 |
+| **M1** | 数据先行（C1–C7 夹具 + 真值） | ✅ 已完成 |
 | **M2** | 结构判定（模块 M1） | ⬜ 未开工 |
 | **M3** | 时长口径判定（模块 M2） | ⬜ 未开工 |
 | **M4** | 时间戳判定（模块 M3） | ⬜ 未开工 |
 | **M5** | 偏移与显示判定（模块 M4+M5）+ 报告 | ⬜ 未开工 |
 | **M6** | 发布（tag + Release + 留档） | ⬜ 未开工 |
 
-> **当前是骨架期**：目录、接口、三态模型、两个门、CI 工作流已就位；
+> **当前进度**：骨架期已就位（目录、接口、三态模型、两个门、CI 工作流），
+> **M1 数据先行已收尾**（C1–C7 夹具 92 例 + 真实样本登记 22 条）；
 > 五个判定模块尚未实现（`--modules` 会明确返回退出码 3，**不冒充 PASS**）。
 > 计划与口径见 `plan/`，续接入口是 `plan/00-README总览.md`。
 
@@ -37,7 +38,7 @@
 node tools/tasks.mjs gates          # 两个门：布局 + 脱敏
 node tools/tasks.mjs test           # go vet + go test
 node tools/tasks.mjs bin            # 构建 bin/mediatrace
-node tools/tasks.mjs fixtures       # 生成夹具（当前 C1–C3）
+node tools/tasks.mjs fixtures       # 生成夹具（M1：92 例，C1–C7 + 三组对照）
 node tools/tasks.mjs check-fixtures # 双跑逐字节比对
 node tools/tasks.mjs all            # 以上一键跑
 

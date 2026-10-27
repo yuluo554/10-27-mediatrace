@@ -34,9 +34,9 @@ node tools/tasks.mjs gates     # = 布局门 + 脱敏门（本机没有 make，�
 
 | 命令 | 作用 | 出口 |
 | --- | --- | --- |
-| `node tools/check-sprint-layout.mjs` | 布局门（10 条判据） | 0 全绿 / 1 FAIL / 2 用法错误 |
+| `node tools/check-sprint-layout.mjs` | 布局门（11 条判据） | 0 全绿 / 1 FAIL / 2 用法错误 |
 | `node tools/check-desensitized.mjs` | 脱敏门（本机路径/用户名/回环代理，4 条规则） | 0 零命中 / 1 命中 |
-| `node tools/verify-layout-gate.mjs` | **两门自己的变异验证**：19 组（10 判据 + 4 规则 + 基线/对照）逐组必须按预期变红 | 0 全部按预期 / 1 有假门 |
+| `node tools/verify-layout-gate.mjs` | **两门自己的变异验证**：21 组（11 判据 + 4 规则 + 基线/对照）逐组必须按预期变红 | 0 全部按预期 / 1 有假门 |
 | `node tools/tasks.mjs gates` | 前两条并跑 | 全绿 |
 | `node tools/tasks.mjs test` | `go vet` + `go test ./...` | 全绿 |
 | `node tools/tasks.mjs all` | gates + verify-gates + check-ignore-rules + test + check-fixtures + smoke | 全绿 |

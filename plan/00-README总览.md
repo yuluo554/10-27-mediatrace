@@ -8,7 +8,7 @@
 
 - **性质**：不参赛项目题 · 发布 GitHub **公开仓库** · 署名 yuluo554
 - **产出**：仓库 `10-27-mediatrace`，命令入口 `mediatrace`；**纯本地单二进制 CLI，只读字节、不解码、运行时不依赖 ffmpeg**
-- **状态**：**骨架期**（阶段 0 装订 + `plan/00`–`06` + `data/README` + 代码骨架 + 两门 + CI 工作流已落盘；M1–M6 未开工）
+- **状态**：**M1 已收尾**（阶段 0 装订 + `plan/00`–`06` + `data/README` + 代码骨架 + 两门 + CI 工作流 + **92 例夹具 / 22 条真实样本登记**已落盘；M2–M6 未开工）
 - **定位宣言**："ffprobe、MediaInfo、MP4Box、Bento4、mkvalidator 各给一份'我看到的样子'，彼此不对话；mediabunny 明知 `elst` 有它不支持的指令却只 `console.warn`；唯一做过策略判定的 MediaConch 已于 2021 停更，且只查格式合规不查同文件内部字段互相矛盾。**所有人都在'打印'，没有人在'判定'。**"
 - **基准日**：2026-10-27（代理实际检索窗口 **2026-10-27T10:56Z–11:22Z**；标签 `10-27` 是系列编号，不是检索日期）
 
@@ -26,20 +26,21 @@
 | `plan/04-数据计划.md` | 合成缺陷集 / 真实样本池 / fixture schema / 真值标签口径 | ✅ v1（骨架期） |
 | `plan/05-里程碑与发布.md` | M1–M6 DoD / 出口门 / 依赖图 / 已知未验证项 | ✅ v1（骨架期） |
 | `plan/06-交付对标与决策.md` | 提交材料对照 / 评分对照 / 缺口 / 风险登记 | ✅ v1（骨架期） |
-| `plan/HANDOFF-M1.md` | **交给第 1 棒（M1 数据先行）的入口交接单**（七节：进度+证据 / 当前事实·状态不变量 F1–F10 / 待办 / K1–K10 / 环境坑 E1–E6 / DoD / 命令速查） | ✅ 骨架期收尾 |
+| `plan/HANDOFF-M1.md` | **交给第 1 棒（M1 数据先行）的入口交接单**（七节：进度+证据 / 当前事实·状态不变量 F1–F10 / 待办 / K1–K10 / 环境坑 E1–E6 / DoD / 命令速查）；**M1 收尾已补 DoD 结果** | ✅ M1 |
+| `plan/HANDOFF-M2.md` | **交给第 2 棒（M2 结构判定）的入口交接单**（七节齐） | ✅ M1 收尾时写 |
 | `plan/RELEASE-M6.md` | 发布留档（tag 前事实 / tag 后追加两栏） | ⬜ 待 M6 |
 | `README.md`（仓库根） | 用户向：定位 / 快速开始 / 退出码 / 隐私 | ✅ 骨架期（M5 定稿措辞） |
 | `LICENSE` | MIT | ✅ 骨架期 |
 | `data/README.md` | 依据查证三态 + 技术事实核实台账 + 数据源可获取性 + 合成数据纪律 + **数值口径单一定义** | ✅ v1 |
-| `data/real-samples.json` | 真实样本登记表（sha256 + URL + 许可；样本本体不入库） | 🟡 骨架期空表 |
+| `data/real-samples.json` | 真实样本登记表（sha256 + URL + 许可；样本本体不入库） | ✅ M1（22 条，全部 `verified: null`） |
 | `docs/rules.md` | 每条规则的人类可读说明与反例 | ✅ 骨架期（规则 ID 齐，实现待 M2–M5） |
 | `docs/report-schema.md` | `pass/fail/gray` 三态 JSON 结构 + 首屏三段 + 退出码 | ✅ 骨架期 |
-| `docs/fixture-pools.md` | 强制构造 C1–C7 的生成纪律 | ✅ 骨架期（C1–C3 构造器已实现，判定待 M2） |
-| `tools/check-sprint-layout.mjs` | 布局门（10 条判据） | ✅ 骨架期 |
+| `docs/fixture-pools.md` | 强制构造 C1–C7 的生成纪律 | ✅ M1（C1–C7 构造器全实现 + 三组对照；判定待 M2–M5） |
+| `tools/check-sprint-layout.mjs` | 布局门（11 条判据） | ✅ 骨架期 |
 | `tools/check-desensitized.mjs` | 脱敏门（4 条规则） | ✅ 骨架期 |
-| `tools/verify-layout-gate.mjs` | 两门自己的变异验证（19 组，每组必按预期变红） | ✅ 骨架期 |
+| `tools/verify-layout-gate.mjs` | 两门自己的变异验证（21 组，每组必按预期变红） | ✅ 骨架期 |
 | `tools/tasks.mjs` | **跨平台任务入口**（本机无 `make`；`Makefile` 只是薄委托） | ✅ 骨架期 |
-| `fixtures/out/manifest.json` | 夹具真值台账（样本字节不入库，manifest 入库） | ✅ C1–C3 构造器 |
+| `fixtures/out/manifest.json` | 夹具真值台账（样本字节不入库，manifest 入库） | ✅ M1（92 例：defects 32 / controls 16 / m3-regression 24 / m4 10 / m5 10） |
 | `.github/workflows/ci.yml` | CI：layout / test 矩阵 / fixtures / cross | ✅ 骨架期（**未首推**） |
 
 > 状态图例：✅ 已落盘 · 🟡 进行中 · ⬜ 待做。**状态列必须与里程碑同步翻转（同一提交里改）。**
@@ -100,7 +101,7 @@
 | 退出码语义 | `data/README §5` | CLI 契约 | 各退出码各一条测试（进程级 + `main()` 级） | ⬜ M5 |
 | 确定性：同输入两次运行逐字节一致 | 设计 | 纯本地 | 双跑 diff 为空（含 `--modules` 子集） | ⬜ M5 |
 | 纯本地零网络 | 红线 | 无网络客户端依赖 | AST/符号扫描 0 命中 | ⬜ M5 |
-| 合成缺陷集 ≥25 例 + 真实样本 ≥20 例 | `data/README §4` | 生成器随包 | 门禁三数打印在首屏 | ⬜ M6 前 |
+| 合成缺陷集 ≥25 例 + 真实样本 ≥20 例 | `data/README §4` | 生成器随包 | 门禁三数打印在首屏 | ✅ M1（合成 92 例、真实登记 22 条；真实样本**复跑**待各判定模块） |
 | 发布三件套：tag + Release 附产物 + 发布留档 | 发布纪律 | 公开仓库 | `plan/RELEASE-M6.md` 无空项 | ⬜ M6 |
 
 **台账外的"永不进判定路径"项**（写清以免被当欠债）：MKV 时间轴语义（`TimestampScale`/`Cluster`/`DefaultDuration` 交叉校验）⬜ 二期；分片 `sidx` ↔ `moof` 自洽 ⬜ 二期；逐样本 PTS/DTS 全量导出 ⬜ 二期；`mkvalidator` 能力边界 ⬜ 未验证（D6）。
@@ -117,7 +118,7 @@
 | M2 时长口径规则 | `internal/rules/duration/` | M3 | `git ls-files internal/rules/duration/` |
 | M3 时间戳规则 | `internal/rules/timestamps/` | M4 | `git ls-files internal/rules/timestamps/` |
 | M4 偏移/priming 规则 + M5 显示与色彩规则 | `internal/rules/offset/`、`internal/rules/display/` | M5 | `git ls-files internal/rules/` |
-| fixture 生成器（C1–C7 强制构造） | `tools/fixture-gen/` | M4 | `git ls-files tools/fixture-gen/`；`node tools/tasks.mjs fixtures` → 复算 sha256 与 manifest 比对 |
+| fixture 生成器（C1–C7 强制构造） | `tools/fixture-gen/` | M1 | `git ls-files tools/fixture-gen/`；`node tools/tasks.mjs fixtures` → 复算 sha256 与 manifest 比对 |
 | 报告渲染（JSON + Markdown 同源） | `internal/report/` | M5 | `git ls-files internal/report/`；`mediatrace audit X --json` |
 | 报告格式文档 | `docs/report-schema.md` | M5 | `git ls-files docs/report-schema.md` |
 | 规则表（人类可读 + 反例） | `docs/rules.md` | M2 | `git ls-files docs/rules.md` |
@@ -135,7 +136,7 @@
 
 | 阶段 | 内容 | 对应模块 | DoD（完成判据） | 状态 |
 |---|---|---|---|---|
-| **M1 · 数据先行** | **先造真值，再写判定**：用 `ffmpeg -itsoffset` / `-copyts` 与 GPAC `-edits` 程序化生成**已知缺陷**文件，逐例登记真值标签；落 `tools/fixture-gen/` 与 `docs/fixture-pools.md` | 无（前置） | 强制构造类（题面原文记作"六类"，`data/README §4` 实列 **C1–C7 共 7 项**：双 `moov` / `stco` 越界 / 截断 `mdat` / 时长口径互斥（题面记作"负 duration"，实为 C4a/C4b 两态，**不能写负数字段**）/ 回退 DTS / 1024 samples 延迟 / `matrix=90` 无 `pasp`）各有 ≥1 个可复现样本；同 seed 逐字节一致；**ffmpeg 只在 CI/生成期使用**，交付二进制零依赖 | ⬜ |
+| **M1 · 数据先行** | **先造真值，再写判定**：用 `ffmpeg -itsoffset` / `-copyts` 与 GPAC `-edits` 程序化生成**已知缺陷**文件，逐例登记真值标签；落 `tools/fixture-gen/` 与 `docs/fixture-pools.md` | 无（前置） | 强制构造类（题面原文记作"六类"，`data/README §4` 实列 **C1–C7 共 7 项**：双 `moov` / `stco` 越界 / 截断 `mdat` / 时长口径互斥（题面记作"负 duration"，实为 C4a/C4b 两态，**不能写负数字段**）/ 回退 DTS / 1024 samples 延迟 / `matrix=90` 无 `pasp`）各有 ≥1 个可复现样本；同 seed 逐字节一致；**ffmpeg 只在 CI/生成期使用**，交付二进制零依赖 | ✅ |
 | **M2 · 结构判定** | 盒子树迭代遍历 IR + 模块 M1 全部规则（`size` 展开、子盒越界、`moov`/`mdat` 唯一、`stco+stsz ⊆ mdat`、`ftyp` 品牌一致）+ MKV EBML 结构对应项 | 模块 M1 | 三例（双 moov / stco 越界 / 截断 mdat）命中 **3/3**、误报 **0**；深盒树不爆栈；每 fail 带偏移 | ⬜ |
 | **M3 · 时长口径判定** | 模块 M2：三口径互比（1 tick 容差）、`elst` 按序编号、`media_time` 与首帧 PTS、空 edit 语义、`media_rate≠1` 报条目号 | 模块 M2 | GPAC 造 3 段 `elst` 逐条定位；S1 类"copy 前后差"可复现；S7 类 2× 时长命中 | ⬜ |
 | **M4 · 时间戳判定** | 模块 M3：DTS 单调、`ctts`→PTS、位宽溢出前兆、timescale 白名单/极小值、VFR 落 gray | 模块 M3 | "回退 DTS"命中并给样本序号；**≥20 正常 H.264/H.265 文件误报 0** | ⬜ |
@@ -177,4 +178,5 @@
 **未接远端**——CI 工作流已入库但未首推，一切"CI 绿"的措辞一律写成"待首推验证"。
 
 **装订期抓到的 7 个真实缺陷**（B1–B7）见 `plan/06 §六`，其中 B7 是**门全绿却漏做**的形态
-（当前棒缺入口交接单），已补判据 `LAYOUT.HANDOFF_ENTRY`。
+（当前棒缺入口交接单），已补判据 `LAYOUT.HANDOFF_ENTRY`。**M1 收尾又抓到一个（B8**：
+变异脚本靶子写死 M1，M1 一翻 ✅ 脚本即自崩——已改为从仓库状态现算，见同节）。
