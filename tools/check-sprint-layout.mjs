@@ -6,18 +6,19 @@
 //   · 每条判据都要报"这轮扫到了几个"——否则"0 命中"与"什么都没扫"输出相同。
 // 退出码：0 全绿 / 1 有 FAIL / 2 用法错误。
 //
-// ── 本项目的判据集（共 9 条）─────────────────────────────────────────────
-//   LAYOUT.FILES        必备文件齐（plan/00-06、data/README、AGENTS、README、LICENSE）
-//   LAYOUT.BINDING_HEAD plan/00 顶部装订行（方法论名 + 门命令 + 装订日期 同现一行）
-//   LAYOUT.SECTIONS     各文档必需小节
-//   LAYOUT.STATUS       里程碑状态在多处副本上互相一致（逐副本命中行数可见）
-//   LAYOUT.HANDOFFS     每个 ✅ 里程碑有七节交接单
-//   LAYOUT.GAPS         plan/06 缺口列不得再提已 ✅ 的里程碑
-//   LAYOUT.LEDGER       plan/00 承诺-证据台账（第四份状态副本）
-//   LAYOUT.RELEASE      发布留档存在且两栏齐（仅在发布里程碑 ✅ 后要求）
-//   LAYOUT.DOC_TOOLS    文档点名的 tools/ 脚本必须有实物
-//   LAYOUT.GITIGNORE    本地状态/产物不得入库（.mimosa/ bin/ 媒体样本）
-// 另：校验失败时 --json 输出（供 verify-layout-gate.mjs 解析）。
+// ── 本项目的判据集（共 11 条）─────────────────────────────────────────────
+//   LAYOUT.FILES         必备文件齐（plan/00-06、data 台账、docs、代码骨架、tools、CI）
+//   LAYOUT.BINDING_HEAD  plan/00 顶部装订行（方法论名 + 门命令 + 装订日期 同现一行）
+//   LAYOUT.SECTIONS      各文档必需小节
+//   LAYOUT.STATUS        里程碑状态在多处副本上互相一致（逐副本命中行数可见）
+//   LAYOUT.HANDOFF_ENTRY **当前棒必须有七节入口交接单**（本项目实测漏项后新增）
+//   LAYOUT.HANDOFFS      每个 ✅ 里程碑有七节交接单
+//   LAYOUT.GAPS          plan/06 缺口列不得再提已 ✅ 的里程碑
+//   LAYOUT.LEDGER        plan/00 承诺-证据台账（第四份状态副本）
+//   LAYOUT.RELEASE       发布留档存在且两栏齐（仅在发布里程碑 ✅ 后要求）
+//   LAYOUT.DOC_TOOLS     文档点名的 tools/ 脚本必须有实物
+//   LAYOUT.GITIGNORE     本地状态/产物不得入库（.mimosa/ bin/ 媒体样本）
+// 另：失败时 --json 输出（供 verify-layout-gate.mjs 解析"红在哪个判据"）。
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -47,6 +48,7 @@ const REQUIRED_FILES = [
   "plan/04-数据计划.md",
   "plan/05-里程碑与发布.md",
   "plan/06-交付对标与决策.md",
+  "plan/HANDOFF-M1.md",
   "docs/report-schema.md",
   "docs/rules.md",
   "docs/fixture-pools.md",
@@ -229,6 +231,43 @@ function checkHandoffs(done, allMilestones) {
     "LAYOUT.HANDOFFS",
     missing.length === 0,
     missing.length ? missing.join("；") : `${present} 份交接单齐（已扫 ${done.length} 个 ✅ 里程碑）`,
+  );
+}
+
+/**
+ * **当前棒必须有入口交接单**（本项目实测漏项，2026-10-27）。
+ *
+ * 为什么单列一条：`checkHandoffs` 只对**已 ✅ 的里程碑**要求交接单，
+ * 于是"阶段 0 装订完成、M1 未开工"这个状态**没有任何判据要求 `HANDOFF-M1.md` 存在**——
+ * 而恰恰在这个状态下，下一棒最需要它（跨对话上下文不可恢复）。
+ * 实测后果：骨架期收尾时漏写 `HANDOFF-M1.md`，两道门全绿，由用户发现。
+ *
+ * 判据 = "当前棒（第一个未完成里程碑）必须有**七节齐**的入口交接单"。
+ * 全部完成时退化为"末棒交接单在位"（`HANDOFF_EXEMPT_LAST=false` 下沿用 checkHandoffs）。
+ */
+function checkEntryHandoff(states, allMilestones) {
+  const pending = [...states.entries()]
+    .filter(([, set]) => set.has("pending"))
+    .map(([k]) => k)
+    .sort((a, b) => Number(a.slice(1)) - Number(b.slice(1)));
+  if (pending.length === 0) {
+    add("LAYOUT.HANDOFF_ENTRY", true, `无待办里程碑（已扫 ${allMilestones.length} 个），入口交接单不适用`);
+    return;
+  }
+  const current = pending[0];
+  const rel = `plan/HANDOFF-${current}.md`;
+  const text = read(rel);
+  if (text === null) {
+    add("LAYOUT.HANDOFF_ENTRY", false, `当前棒 ${current} 缺入口交接单 ${rel}（下一棒无从接手）`);
+    return;
+  }
+  const lack = HANDOFF_SECTIONS.filter((s) => !text.includes(s));
+  add(
+    "LAYOUT.HANDOFF_ENTRY",
+    lack.length === 0,
+    lack.length
+      ? `${rel} 缺节: ${lack.join("/")}`
+      : `${rel} 在位且七节齐（当前棒 ${current}；待办 ${pending.length} 个）`,
   );
 }
 
@@ -416,6 +455,7 @@ function main() {
   for (const run of [
     () => checkDocumentedToolsExist(done),
     () => checkStatusAgreement({ states, rowsByCopy }),
+    () => checkEntryHandoff(states, allMilestones),
     () => checkHandoffs(done, allMilestones),
     () => checkStaleGaps(done),
     () => checkLedger(done),

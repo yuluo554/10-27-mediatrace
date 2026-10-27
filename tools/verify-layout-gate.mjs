@@ -96,11 +96,14 @@ function expectGreen(id, script) {
 }
 
 /**
- * 在"里程碑状态表"里把某里程碑的状态格改成 cell（只改一处副本）。
+ * 在"里程碑状态表"里把某里程碑的**状态格**改成 cell（只改一处副本）。
  *
- * **必须按表头定位**（与布局门的 `milestoneRows` 同一口径）：早先用"行首像 M1 就改"
- * 会命中 `plan/00 §四` 的提交材料表（首格 `M1 结构规则`），改坏的是**核验命令列**，
- * 而且 status 根本没动 —— 变异静默无害、门也不红（本项目实测）。
+ * **必须按表头定位（行与列都要）**——这是同一类缺陷踩过两次（plan/06 §六 B2 与 B2b）：
+ *   · 早先按"行首像 M1"定位行 → 命中 `plan/00 §四` 提交材料表，改坏核验命令列；
+ *   · 早先按"最后一个单元格"定位列 → `plan/05` 的最后一列是**出口门**而非状态，
+ *     于是状态格根本没动、行内仍含 ⬜，门报 `LAYOUT.STATUS` 冲突（而预期是 HANDOFFS 红）。
+ * 本项目的状态表列序：plan/00 与 README 是「… | 状态 |」（末列即状态），
+ * plan/05 是「阶段 | 名称 | 状态 | 出口门」——**只有按表头找"状态"列才两边都对**。
  */
 function setStatus(rel, key, cell) {
   return mutate(rel, (t) => {
@@ -109,6 +112,10 @@ function setStatus(rel, key, cell) {
       (l) => l.startsWith("|") && l.includes("状态") && (l.includes("阶段") || l.includes("里程碑")),
     );
     if (headerIdx < 0) throw new Error(`${rel} 找不到里程碑状态表头`);
+    const headers = lines[headerIdx].split("|").map((c) => c.trim());
+    // 表头首尾是空串，单元格下标 = headers 里的下标
+    const statusCol = headers.findIndex((h) => h.includes("状态"));
+    if (statusCol < 0) throw new Error(`${rel} 状态表里找不到「状态」列（表头: ${headers.join(" / ")}）`);
     const re = new RegExp(`^\\|\\s*\\**\\s*${key}\\b`);
     let idx = -1;
     for (let i = headerIdx + 2; i < lines.length; i++) {
@@ -120,9 +127,9 @@ function setStatus(rel, key, cell) {
     }
     if (idx < 0) throw new Error(`里程碑行 ${key} 未找到于 ${rel} 的状态表（结构变了？）`);
     const cells = lines[idx].split("|");
-    const prev = cells[cells.length - 2].trim();
+    const prev = cells[statusCol].trim();
     if (prev === cell) throw new Error(`${rel} 的 ${key} 状态已是 ${cell}，变异无意义`);
-    cells[cells.length - 2] = ` ${cell} `;
+    cells[statusCol] = ` ${cell} `;
     lines[idx] = cells.join("|");
     return lines.join("\n");
   });
@@ -182,8 +189,23 @@ const flipM1 = () => [
   () => setStatus("plan/05-里程碑与发布.md", "M1", "✅ 已完成"),
   () => setStatus("README.md", "M1", "✅ 已完成"),
 ];
-// 三处副本一致翻 ✅，但没有 HANDOFF-M1 → 交接单判据必须红
-expectFail("M5.HANDOFFS", LAYOUT, () => compose(...flipM1()), "LAYOUT.HANDOFFS");
+// M1 在三处副本一致翻 ✅，同时把它的交接单藏起来 → 交接单判据必须红。
+// （不能只翻 ✅：HANDOFF-M1.md 已存在且七节齐，那属于合法终态、不该红。）
+expectFail(
+  "M5.HANDOFFS",
+  LAYOUT,
+  () => compose(...flipM1(), () => hide("plan/HANDOFF-M1.md")),
+  "LAYOUT.HANDOFFS",
+);
+// 当前棒的入口交接单被删 → HANDOFF_ENTRY 必须红（本项目实测漏写过一次）
+expectFail("M5b.HANDOFF_ENTRY", LAYOUT, () => hide("plan/HANDOFF-M1.md"), "LAYOUT.HANDOFF_ENTRY");
+// 入口交接单缺节 → 同一判据必须红（否则"有文件就算过"仍是假门）
+expectFail(
+  "M5c.HANDOFF_ENTRY_SECTIONS",
+  LAYOUT,
+  () => mutate("plan/HANDOFF-M1.md", (t) => t.replace("## 二、当前事实 · 状态不变量", "## 二、其它")),
+  "LAYOUT.HANDOFF_ENTRY",
+);
 // 同上，再在 plan/06 的缺口格写入已 ✅ 的 M1
 expectFail("M6.GAPS", LAYOUT, () =>
   compose(

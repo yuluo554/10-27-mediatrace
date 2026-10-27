@@ -10,7 +10,10 @@ node tools/tasks.mjs gates     # = 布局门 + 脱敏门（本机没有 make，�
 
 必须全绿；红了**先修布局/脱敏**，再干活。
 
-- 续接对话：读 `plan/HANDOFF-M<k>.md`（第 k 棒的收尾交接单），**先跑上面这条门**。
+- 续接对话：读 `plan/HANDOFF-M<k>.md`（**交给第 k 棒**的入口交接单；当前棒 = `plan/00 §五` 第一个 ⬜），
+  **先跑上面这条门**。
+- **收尾每一棒必须写下一棒的 `HANDOFF-M<k+1>.md`**——这是硬约束①，不是可选项；
+  `LAYOUT.HANDOFF_ENTRY` 会在"当前棒没有入口交接单"时变红（骨架期实测漏写过一次，见 `plan/06 §六 B7`）。
 - 接手对话（无 HANDOFF）：先读 `plan/00`、`plan/05`、`plan/06` 与各 HANDOFF，
   重建"当前状态 + K 口径清单"再动手。
 - **门不存在 = 本项目没装订** → 先补装订（第零步），再做别的。
@@ -21,7 +24,7 @@ node tools/tasks.mjs gates     # = 布局门 + 脱敏门（本机没有 make，�
 | --- | --- | --- |
 | 计划套件 | `plan/00`–`06` + `data/README.md` | 存在且各含必需小节 |
 | 数据台账 | `data/README.md`、`data/real-samples.json` | 台账在位（来源 + 三态） |
-| 交接单 | `plan/HANDOFF-M<k>.md` | 每个 ✅ 里程碑一份（含收尾棒），**七节**齐（含"当前事实·状态不变量"） |
+| 交接单 | `plan/HANDOFF-M<k>.md` | **当前棒必须有入口交接单（七节齐）**——`LAYOUT.HANDOFF_ENTRY`；每个 ✅ 里程碑各一份——`LAYOUT.HANDOFFS`。命名 = "交给第 k 棒"（第 k-1 棒收尾时写） |
 | 里程碑状态副本 | `plan/00` 台账行 + `plan/00` 里程碑表 + `plan/05` 状态表 + `README.md` 状态表 | **逐处一致**；副本必须含表格行才可机读，散文状态行贡献 0 行且门会把每副本命中行数打出来 |
 | 发布留档 | `plan/RELEASE-M6.md`（两栏）或 `plan/WRAPUP-M6.md` | 标题齐、无占位 |
 | 发布门覆盖对账 | `plan/RELEASE-M6.md` §覆盖对账 | 阶段 7 出口门逐条：实现 / 不适用+理由 / 待首推 |
