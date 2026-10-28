@@ -45,11 +45,24 @@ jobs:
       - name: 本地状态不入库
         run: |
           set -euo pipefail
-          if git ls-files | grep -qE '^(\.mimosa/|bin/|fixtures/out/|dist/)'; then
-            echo "local state/artifacts are tracked"; git ls-files | grep -E '^(\.mimosa/|bin/|fixtures/out/|dist/)'; exit 1
+          # fixtures/out/ 下只允许 manifest.json（真值台账，必须入库）；其余样本字节
+          # 与所有 bin/dist/.mimosa 产物都不得入库。
+          # 注：这条早先写成整目录排除，把 manifest.json 一起判红——与 plan/06 §B6
+          # （.gitignore 的 out/ 误吞台账）是同一类错误，首推实测抓到。
+          bad=""
+          while IFS= read -r p; do
+            case "$p" in
+              fixtures/out/manifest.json) continue ;;
+            esac
+            case "$p" in
+              .mimosa/*|bin/*|dist/*|fixtures/out/*) bad="$bad$p"$'\n' ;;
+            esac
+          done < <(git ls-files)
+          if [ -n "$bad" ]; then
+            echo "local state/artifacts are tracked:"; printf '%s' "$bad"; exit 1
           fi
           if git ls-files | grep -qE '\.(mp4|mkv|mov|m4a)$'; then
-            echo "media samples are tracked"; exit 1
+            echo "media samples are tracked"; git ls-files | grep -E '\.(mp4|mkv|mov|m4a)$'; exit 1
           fi
           echo "no local state or media in index"
 
