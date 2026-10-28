@@ -280,13 +280,20 @@ expectFail("M3.SECTIONS", LAYOUT, () => mutate("plan/02-架构与技术选型.md
 expectFail("M4.STATUS", LAYOUT, () => statusMutation("README.md"), "LAYOUT.STATUS");
 // 某个里程碑在三处副本一致翻 ✅，同时把它的交接单藏起来 → 交接单判据必须红。
 // 靶子：当前棒（有待办）或最后一个已 ✅（全完成）——两种进度下都成立。
+//
+// ⚠️ 这里必须用**块体**而不是三元表达式。三元版写成
+//   `() => CURRENT ? compose(…) : () => hide(…)`
+// 时，假分支的**整个箭头体**求值成一个函数而没有被执行：
+// 「变异」返回了 `() => hide(…)` 却从未调用它 → 门保持绿（假门）；
+// 接着 `finally` 把该返回值当恢复函数调用，反而真的把文件藏了 → 污染仓库。
+// 该缺陷只在"所有里程碑都 ✅"时触发（即恰好 M6 收尾这一刻），M6 实测抓到。
 expectFail(
   "M5.HANDOFFS",
   LAYOUT,
-  () =>
-    CURRENT
-      ? compose(...flipAll(CURRENT, "✅ 已完成"), () => hide(`plan/HANDOFF-${CURRENT}.md`))
-      : () => hide(`plan/HANDOFF-${LAST_DONE}.md`),
+  () => {
+    if (CURRENT) return compose(...flipAll(CURRENT, "✅ 已完成"), () => hide(`plan/HANDOFF-${CURRENT}.md`));
+    return hide(`plan/HANDOFF-${LAST_DONE}.md`);
+  },
   "LAYOUT.HANDOFFS",
 );
 // 当前棒的入口交接单被删 → HANDOFF_ENTRY 必须红（本项目实测漏写过一次）

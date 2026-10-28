@@ -8,7 +8,7 @@
 
 - **性质**：不参赛项目题 · 发布 GitHub **公开仓库** · 署名 yuluo554
 - **产出**：仓库 `10-27-mediatrace`，命令入口 `mediatrace`；**纯本地单二进制 CLI，只读字节、不解码、运行时不依赖 ffmpeg**
-- **状态**：**M1–M5 已收尾，五个判定模块全部实现**（阶段 0 装订 + `plan/00`–`06` + `data/README` + 两门 + CI 工作流 + **92 例夹具 / 22 条真实样本登记**已落盘；模块 **M1/M2/M3/M4/M5 均已实现并对夹具集对账**；M6 发布未开工）
+- **状态**：**M1–M6 全部收尾，v0.1.0 已发布**（<https://github.com/yuluo554/10-27-mediatrace>）：五个判定模块 M1–M5 全部实现并对 92 例夹具对账；公开仓库 + `v0.1.0` annotated tag + Release（三平台单二进制 + `SHA256SUMS`，从 tag 树重建、真下载复核）+ 发布留档 `plan/RELEASE-M6.md`；CI 首推全绿（tag 提交 run `40630946597` = 6/6）
 - **定位宣言**："ffprobe、MediaInfo、MP4Box、Bento4、mkvalidator 各给一份'我看到的样子'，彼此不对话；mediabunny 明知 `elst` 有它不支持的指令却只 `console.warn`；唯一做过策略判定的 MediaConch 已于 2021 停更，且只查格式合规不查同文件内部字段互相矛盾。**所有人都在'打印'，没有人在'判定'。**"
 - **基准日**：2026-10-27（代理实际检索窗口 **2026-10-27T10:56Z–11:22Z**；标签 `10-27` 是系列编号，不是检索日期）
 
@@ -107,7 +107,7 @@
 | 确定性：同输入两次运行逐字节一致 | 设计 | 纯本地 | 双跑 diff 为空（含 `--modules` 子集） | ✅ M5 |
 | 纯本地零网络 | 红线 | 无网络客户端依赖 | AST/符号扫描 0 命中 | ✅ M5 |
 | 合成缺陷集 ≥25 例 + 真实样本 ≥20 例 | `data/README §4` | 生成器随包 | 门禁三数打印在首屏 | ✅ M1（合成 92 例、真实登记 22 条；真实样本**复跑**待各判定模块） |
-| 发布三件套：tag + Release 附产物 + 发布留档 | 发布纪律 | 公开仓库 | `plan/RELEASE-M6.md` 无空项 | ⬜ M6 |
+| 发布三件套：tag + Release 附产物 + 发布留档 | 发布纪律 | 公开仓库 | `plan/RELEASE-M6.md` 两栏 + 覆盖对账齐；`git cat-file -t v0.1.0` = tag；`gh release view` 四附件 | ✅ M6 |
 
 **台账外的"永不进判定路径"项**（写清以免被当欠债）：MKV 时间轴语义（`TimestampScale`/`Cluster`/`DefaultDuration` 交叉校验）⬜ 二期；分片 `sidx` ↔ `moof` 自洽 ⬜ 二期；逐样本 PTS/DTS 全量导出 ⬜ 二期；`mkvalidator` 能力边界 ⬜ 未验证（D6）。
 
@@ -146,7 +146,7 @@
 | **M3 · 时长口径判定** | 模块 M2：三口径互比（1 tick 容差）、`elst` 按序编号、`media_time` 与首帧 PTS、空 edit 语义、`media_rate≠1` 报条目号 | 模块 M2 | GPAC 造 3 段 `elst` 逐条定位；S1 类"copy 前后差"可复现；S7 类 2× 时长命中 | ✅ |
 | **M4 · 时间戳判定** | 模块 M3：DTS 单调、`ctts`→PTS、位宽溢出前兆、timescale 白名单/极小值、VFR 落 gray | 模块 M3 | "回退 DTS"命中并给样本序号；**≥20 正常 H.264/H.265 文件误报 0** | ✅ |
 | **M5 · 偏移与显示判定** | 模块 M4（priming/encoder delay、起始裁剪）+ 模块 M5（matrix 正交性、呈现宽高、SAR、`colr`/`mdcv`/`clli` 量程与互斥）+ 报告三态与首屏三段 + 退出码 | 模块 M4 + M5 | "1024 晚"报出 1024；正反例各 5 个；matrix=±90 命中且正常竖屏不报；`gray` 可导出且不计 fail；同输入逐字节一致 | ✅ |
-| **M6 · 发布** | 脱敏复核 + 公开仓库发布 | — | **DoD 三件套 = `git tag` + GitHub Release（附产物：单二进制 + `SHA256SUMS`）+ 发布留档 `plan/RELEASE-M6.md`（tag 前落盘进 tag 树，含"tag 时点事实 / tag 后追加事实"两栏）**；公开仓库可匿名克隆 | ⬜ |
+| **M6 · 发布** | 脱敏复核 + 公开仓库发布 | — | **DoD 三件套 = `git tag` + GitHub Release（附产物：单二进制 + `SHA256SUMS`）+ 发布留档 `plan/RELEASE-M6.md`（tag 前落盘进 tag 树，含"tag 时点事实 / tag 后追加事实"两栏）**；公开仓库可匿名克隆 | ✅ |
 
 > **DoD 产物口径**：Release 附产物（单二进制 + `SHA256SUMS`）。该口径自首提交起不得降级。
 > **tag 时点口径**：`plan/RELEASE-M6.md` 必须在 tag **之前**写好并进 tag 树；tag 后才产生的事实（附件 sha256、真下载复核）作为追加提交，分两栏写。
