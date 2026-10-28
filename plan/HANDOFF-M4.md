@@ -23,9 +23,16 @@
 | `--modules` 子集一致（G9） | ✅ | `TestM2SubsetConclusionIsStable`：`--modules M2` == `--modules M1,M2` 里的 M2 一半 |
 | 两门 + 变异验证 | ✅ | `node tools/tasks.mjs gates`（11 判据 / 4 规则）；`verify-gates`（21 组逐组变红） |
 | 本地全套 | ✅ | `node tools/tasks.mjs test` 全绿（含整夹具集对账） |
-| **M4 实现** | ⬜ **未开工** | 本文件即其入口 |
+| **M4 实现** | ✅ **已收尾** | 模块 M3（`internal/rules/timestamps`，六条 RuleID）；见 §六 DoD 结果 |
+| `internal/rules/timestamps` | ✅ | `Audit(root, raw, fileName)`；六条 RuleID；`ctts` 分宽、`tfdt` v0/v1 分宽；DTS/PTS 分家 |
+| `--modules M3` 接线 | ✅ | `bin/mediatrace audit fixtures/out/c5b_tfdt_regression.mp4 --modules M3` → exit 1 + `tfdt_regression`（fragment #1，偏移 0x5E8） |
+| 模块 M3 对账 | ✅ | `cmd/mediatrace`：`TestM3MatchesFixtureTruth`（`C5`/`C5b`/`C5c`/`T1`/`T2` 命中 + 构造点偏移命中 + 对照组 **60 例 0 finding**） |
+| `--modules` 子集一致（G9） | ✅ | `TestM3SubsetConclusionIsStable`：`--modules M3` == `--modules M1,M2,M3` 里的 M3 一半 |
+| B 帧不误伤 | ✅ | `TestM3DoesNotMisjudgeBFrames`：`m3-regression` 24 例（含 v1 负偏移 B 帧）M3 下 0 finding |
+| 两门 + 变异验证 | ✅ | `gates`（11 判据 / 4 规则）；`verify-gates`（21 组逐组变红；跑后 `git diff --stat` 无残留） |
+| 本地全套 | ✅ | `node tools/tasks.mjs all` 全绿 |
 
-提交：见 `git log --oneline`（末条为 `M3 · 时长口径判定 …`）。
+提交：见 `git log --oneline`（末条为 `M4 · 时间戳判定：模块 M3 六条规则（92 例对账，对照 60 例误报 0）`）。
 
 ---
 
@@ -130,21 +137,39 @@
 
 ---
 
-## 六、DoD 逐项 checklist（M4，取自 `plan/00 §五` 与 `plan/05 §二`）
+## 六、DoD 逐项 checklist（M4，取自 `plan/00 §五` 与 `plan/05 §二`）—— ✅ 收尾已验（2026-10-28）
 
-- [ ] `internal/rules/timestamps/` 建成，模块 M3 六个 RuleID 全实现
-- [ ] `dts_regression` 报**样本序号** + `stts` 条目号 + 字节偏移；容差引用 `policy.DTSRegressionTolerance`
-- [ ] `tfdt_regression`（v0/v1 两形态）报分片序号
-- [ ] `zero_duration_entry` 报条目号；`dts_overflow_risk` 报越界位置（32/64 分宽）
-- [ ] `ctts` v1 **有符号**偏移单测（B 帧不得被判回退）
-- [ ] `T1` 落 `timescale_suspect` gray；`C5` 同时落 `zero_duration_entry`(fail) + `vfr_detected`(gray)
-- [ ] `T2` 命中 `dts_overflow_risk`；`C5b`/`C5c` 命中 `tfdt_regression`
-- [ ] **`m3-regression` 24 例（含 B 帧）误报 0**；四组对照组 60 例在 M3 下 0 finding（**集合相等**断言，与 M1/M2 同构）
-- [ ] 每条 `fail` 带四元组（偏移 + 字段路径 + 值 + 差值）
-- [ ] `--modules M3` 单独跑通且结论 == 全集里 M3 的结论（G9）
-- [ ] `docs/rules.md` M3 节写完（反例指向样本 id）
-- [ ] 三处状态副本 + `plan/00 §三` 台账行同提交翻 ✅ + `plan/HANDOFF-M5.md` 已写
-- [ ] `node tools/tasks.mjs all` 全绿
+- [x] `internal/rules/timestamps/` 建成，模块 M3 六个 RuleID 全实现 — `RuleIDs` 与 `docs/rules.md` M3 节对账（`dts_regression` / `tfdt_regression` / `zero_duration_entry` / `dts_overflow_risk` / `timescale_suspect` / `vfr_detected`）
+- [x] `dts_regression` 报**样本序号** + `stts` 条目号 + 字节偏移；容差引用 `policy.DTSRegressionTolerance` — 塑形由 `TestDTSRegressionCarriesSampleIndexEntryAndOffset` 钉住（`field_path=…/stts[2].duration`，`values` 带 `sample_index`/`stts_entry`）。**如实登记**：`stts.duration` 无符号 ⇒ 良构 `stts` 的累计 DTS **不可能回退**，故本夹具集**没有** `dts_regression` 样本（`gen/builders_defects.go` 头注同此）；C5「回退 DTS」由下两条**可达**形态覆盖
+- [x] `tfdt_regression`（v0/v1 两形态）报分片序号 — `C5b`(v0)/`C5c`(v1) 命中：`fragment_index=1`、`tfdt=30000 < 90000`、`values` 含**两处偏移**、`delta=60000`；`tfdt` 分宽读见单测 `TestReadTfdtHonoursFieldWidth`
+- [x] `zero_duration_entry` 报条目号；`dts_overflow_risk` 报越界位置（32/64 分宽） — `C5`（条目 #1，偏移 0x230=560）；`T2`（条目 #0、样本 #1，`cumulative_dts=8589934080` 越过 32 位上限，偏移 0x228=552）；分宽见 `TestTfdtOverflowWidths` / `TestSttsOverflowLocatesEntryAndSample`
+- [x] `ctts` v1 **有符号**偏移单测（B 帧不得被判回退） — 模块 M3 **只判 DTS、不判 PTS**（`ctts` 不参与判定，故负偏移不可能被当回退）；`TestM3DoesNotMisjudgeBFrames` 断言 `m3-regression` 24 例（gen 侧已证含 v0 正偏移与 **v1 有符号负偏移**两类）M3 下 **0 finding**
+- [x] `T1` 落 `timescale_suspect` gray；`C5` 同时落 `zero_duration_entry`(fail) + `vfr_detected`(gray) — `T1` exit 2、偏移 0x114=276（`mdhd.timescale`）；`C5` exit 1、两 finding **并列不互斥**
+- [x] `T2` 命中 `dts_overflow_risk`；`C5b`/`C5c` 命中 `tfdt_regression` — `TestM3MatchesFixtureTruth` 逐例**集合相等** + **构造点偏移命中**（`C5`=560 / `C5b`=1512 / `C5c`=1516 / `T1`=276 / `T2`=552）
+- [x] **`m3-regression` 24 例（含 B 帧）误报 0**；四组对照组 60 例在 M3 下 0 finding（**集合相等**断言，与 M1/M2 同构） — `TestM3MatchesFixtureTruth`：`controls`+`m3-regression`+`m4`+`m5` 共 **60** 例 0 finding、exit 0
+- [x] 每条 `fail` 带四元组（偏移 + 字段路径 + 值 + 差值） — `TestM3FailFindingsCarryFullEvidence` + 渲染层 `ValidateAll` 拒绝
+- [x] `--modules M3` 单独跑通且结论 == 全集里 M3 的结论（G9） — `TestM3SubsetConclusionIsStable`（`--modules M3` == `--modules M1,M2,M3` 的 M3 一半，且幂等）
+- [x] `docs/rules.md` M3 节写完（反例指向样本 id） — 六条规则 + 证据要点 + 同一根因合并 + 分宽读 + "为什么 dts_regression 无夹具"如实说明
+- [x] 三处状态副本 + `plan/00 §三` 台账行同提交翻 ✅ + `plan/HANDOFF-M5.md` 已写
+- [x] `node tools/tasks.mjs all` 全绿
+
+### M4 期间的设计取舍（写清以免被当漏项）
+
+| 取舍 | 为什么 |
+|---|---|
+| **`dts_regression` 保留完整判据但不设夹具** | `stts.duration` 无符号 ⇒ 累计 DTS 单调不减，字面判据 `dts[n] < dts[n-1]` 对良构 `stts` **不可能为真**（`gen/builders_defects.go` 头注已写明）。故 `data/README §4` 的 C5 用两条**可达**形态表达：`zero_duration_entry`（`C5`）与 `tfdt_regression`（`C5b`/`C5c`）。"报样本序号+条目号+偏移"的契约由包单测钉住 |
+| **溢出**压过**回退**（同一根因合并，F15） | `T2` 的累计 DTS 越过 32 位时，字段宽度内的"回退"只是溢出的表象；真值只期望 `dts_overflow_risk`，故检测到越界即返回，不再单报 `dts_regression` |
+| **按 `stts` 条目推进（不落全量样本表）** | `plan/01 §五 M3` 确定性纪律 / R4：每条的 `count×duration` 整数一次算完，只在越界点定位到条目号 + 样本序号，避免大文件内存爆炸。越界样本序号由 `floor((上限−累计)/时长)` 闭式算出 |
+| **`tfdt` v1（64 位）不设越界** | int64 表达不了 2⁶⁴ 之上；v0 的 32 位越界由 `checkTfdtOverflow` 判（有单测，夹具无此形态） |
+| **`timescale_suspect` 排除已溢出轨** | §5.2 明写"低于 100 **且未触发** `dts_overflow_risk`"——溢出是 fail，不该再落 gray |
+| **空 `stts`（分片轨）不算 VFR** | 0 条不多于 1 条；`K9-frag`/`C5b`/`C5c`/`F1` 的分片轨不落 `vfr_detected` |
+
+### M4 期间顺手修正的真实缺陷
+
+- **`plan/00 §三` 台账一行误标里程碑**：`priming / encoder delay…` 一行原标 `⬜ M4`，但它属**模块 M4（priming）**=**里程碑 M5**（同组的 `matrix…`/`colr…` 两行都标 `⬜ M5`）。M4 一翻 ✅，`LAYOUT.LEDGER` 立刻把这一行判成"已 ✅ 里程碑仍挂未完成"。本次改为 `⬜ M5`（如实回填，未放宽带宽）。
+
+**M4 未做（如实登记）**：真实样本（22 条）的实际审计复跑（需样本本体，属发布前复核）；
+`GATE`/`--suite` 批跑模式（属 M5 报告收口，见 `HANDOFF-M5 §二 F21`）。
 
 ---
 

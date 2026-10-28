@@ -1,8 +1,8 @@
 # 夹具池与构造纪律（C1–C7）
 
-> 状态：**M3 已收尾**——C1–C7 的**构造器**已全部实现（92 例，能把样本字节造出来并进 manifest）；
-> **判定侧**：模块 M1（结构自洽，阶段 M2）与模块 M2（时长口径，阶段 M3）已实现并对整夹具集对账；
-> 模块 M3–M5（时间戳/偏移/显示）仍是 `ErrNotImplemented`（待阶段 M4–M5），**不冒充 PASS**。
+> 状态：**M4 已收尾**——C1–C7 的**构造器**已全部实现（92 例，能把样本字节造出来并进 manifest）；
+> **判定侧**：模块 M1（结构自洽，阶段 M2）、模块 M2（时长口径，阶段 M3）与模块 M3（时间戳，阶段 M4）
+> 已实现并对整夹具集对账；模块 M4–M5（偏移/显示）仍是 `ErrNotImplemented`（待阶段 M5），**不冒充 PASS**。
 > 权威编号：`data/README.md §4`。
 > 实现：`tools/fixture-gen/gen/`（`movie.go` 合法构造器 + `builders_defects.go` + `builders_controls.go`）；
 > 清单：`fixtures/out/manifest.json`（**入库**——真值台账；样本字节不入库）。
@@ -31,7 +31,7 @@
 | **C2** | `stco` 越界 | chunk offset 指向 `mdat` 载荷之外 | `stco_out_of_mdat` + 条目号 + 区间 | ✅ 构造器✅ `C2`+`C2b`(指向 moov)+`C2c`(尾部截断)+`C2d`(co64 2^40) / 判定✅ M2 |
 | **C3** | 截断 `mdat` | 声明 size 大于实际剩余字节 | `truncated_mdat` + 声明 vs 实际 | ✅ 构造器✅ `C3`+`C3b`(尾部截断) / 判定✅ M2 |
 | **C4** | 时长口径互斥 | **C4a**：`mvhd.duration` ≠ `Σ(stts)`（含 2× 形态）；**C4b**：起点 + 时长越界 | `duration_mismatch` + 三口径原值 | ✅ 构造器✅ `C4a`(mvhd 2×)+`C4a2`(tkhd 2×)+`C4a3`(mvhd 偏短)+`C4b`(elst 越界) / 判定✅ M3 |
-| **C5** | 回退 DTS | `stts` 插入 duration 使累计回退 | `dts_regression` + 样本序号 + 偏移 | 🟡 构造器✅ `C5`(zero_duration_entry+vfr)+`C5b`(tfdt v0 回退)+`C5c`(tfdt v1 回退) / 判定待 M4 |
+| **C5** | 回退 DTS | `stts` 零时长条目 / 分片 `tfdt` 序倒退（`stts.duration` 无符号 ⇒ 累计 DTS 不可能回退，故 **C5 用两条可达形态表达**） | `zero_duration_entry`（+ `vfr_detected`）/ `tfdt_regression` + 样本/分片序号 + 偏移 | ✅ 构造器✅ `C5`(zero_duration_entry+vfr)+`C5b`(tfdt v0 回退)+`C5c`(tfdt v1 回退) / **判定✅ M4** |
 | **C6** | 1024 samples 延迟 | 音频首帧 PTS 后移 1024，`elst` 未裁剪 | `priming_undeclared`，**报出 1024** | 🟡 构造器✅ `C6`(ctts 1024 无 edts)+`C6b`(gray `no_roll_distance`)+`C6c`(roll 704 不匹配) / 判定待 M5 |
 | **C7** | `matrix=±90` 无 `pasp` | `tkhd` matrix 置旋转，`width<height`，删 `pasp` | `rotation_dimension_conflict` | 🟡 构造器✅ `C7`(rot90)+`C7b`(rot270) / 判定待 M5 |
 
@@ -53,16 +53,17 @@
 
 | 组 | 规模（实测构造数） | 期望 | 状态（构造器 / 判定） |
 |---|---|---|---|
-| M3 回归集 | **24** 个正常 H.264/H.265（**含 B 帧**：v0 正偏移与 v1 有符号负偏移两形态） | 全 `pass`，误报 **0** | 🟡 构造器✅（`m3-regression`，24 例） / 判定待 M4（**M3 阶段已复核：M2 下 0 finding**） |
+| M3 回归集 | **24** 个正常 H.264/H.265（**含 B 帧**：v0 正偏移与 v1 有符号负偏移两形态） | 全 `pass`，误报 **0** | ✅ 构造器✅（`m3-regression`，24 例） / **判定✅ M4（模块 M3 下 0 finding）** |
 | M4 正反例 | fail **5** / pass **5** | 正确裁剪不报 / 未声明报 | 🟡 构造器✅（`m4`，10 例） / 判定待 M5（**M3 阶段已复核：M2 下 0 finding**） |
 | M5 正反例 | fail **5** / pass **5** | 正常竖屏不报 / 冲突报 | 🟡 构造器✅（`m5`，10 例） / 判定待 M5（**M3 阶段已复核：M2 下 0 finding**） |
-| 通用控制组（`controls`） | **16** 个合法样本 | 全 `pass` | ✅ 构造器✅（moov/stco/size0/largesize/duration/dts/priming/portrait/rot180/frag/empty-edit/colr+hmd/matrix-ortho/opus/co64/B 帧） / 判定✅ M2（结构） + M3（时长）；M4/M5 待 |
+| 通用控制组（`controls`） | **16** 个合法样本 | 全 `pass` | ✅ 构造器✅（moov/stco/size0/largesize/duration/dts/priming/portrait/rot180/frag/empty-edit/colr+hmd/matrix-ortho/opus/co64/B 帧） / **判定✅ M2（结构）+ M3（时长）+ M4（时间戳）**；M5 待 |
 
 > **"构造器✅"≠"判定已实现"**：样本能造出来、能算 sha256、真值标签进 manifest，这只证明
 > **输入侧**齐备。对照组是否真的全 `pass`，要等对应模块实现后由 `mediatrace audit` 验证。
-> **已复核的范围**：模块 M1（结构）与模块 M2（时长）已对**整 92 例**对账——四组对照组共 **60 例**
-> 在这两个模块下**零 finding**（`TestM1MatchesFixtureTruth` / `TestM2MatchesFixtureTruth`）。
-> 其余模块（时间戳/偏移/显示）的"误报 0"仍**待各自棒次验证**，本节不得替它们下结论。
+> **已复核的范围**：模块 M1（结构）、M2（时长）与 M3（时间戳）已对**整 92 例**对账——四组对照组
+> 共 **60 例**在这三个模块下**零 finding**（`TestM1MatchesFixtureTruth` /
+> `TestM2MatchesFixtureTruth` / `TestM3MatchesFixtureTruth`）。
+> 其余模块（偏移/显示）的"误报 0"仍**待 M5 棒次验证**，本节不得替它们下结论。
 
 ---
 

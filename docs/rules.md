@@ -1,8 +1,8 @@
 # 规则表（人类可读 + 反例）
 
-> 状态：**M3 已收尾**——已实现**模块 M1（结构自洽）**与**模块 M2（时长口径）**；
-> 模块 M3–M5（时间戳/偏移/显示）的规则 ID 已定名，实现待 M4–M5。规则 ID 与
-> `internal/rules/` 实现一一对应。
+> 状态：**M4 已收尾**——已实现**模块 M1（结构自洽）**、**模块 M2（时长口径）**与
+> **模块 M3（时间戳）**；模块 M4–M5（偏移/显示）的规则 ID 已定名，实现待 M5。
+> 规则 ID 与 `internal/rules/` 实现一一对应。
 > 口径数字只在 `data/README.md §5`；本文只写"规则在判什么、什么不算违规"。
 > 本节的反例样本 id 一律指向 `fixtures/out/manifest.json` 里的 `case_id`。
 
@@ -112,17 +112,51 @@
 
 ## M3 · 时间戳
 
-| RuleID | 判什么 | 反例（不算违规） |
-|---|---|---|
-| `dts_regression` | `dts[n] < dts[n-1]`（0 容差） | **PTS 乱序**（B 帧）——只判 DTS |
-| `tfdt_regression` | 跨分片 `tfdt` 回退 | 分片间正常递增 |
-| `zero_duration_entry` | `stts.duration == 0` | — |
-| `dts_overflow_risk` | 累计越过字段位宽 | 未越界 |
-| `timescale_suspect` | 极小 timescale（gray） | 白名单值；低 timescale 但未溢出仍 gray |
-| `vfr_detected` | `stts` 条目 >1（gray） | 单条目恒帧率 |
+实现：`internal/rules/timestamps/`（模块号 `M3`；`rules.go` 里 `m3` 转调它）。
+判定对象是**同一个文件里时间戳序列是否自洽**：`stts` 推出的 DTS 是否单调、累计是否
+越过字段位宽、`timescale` 是否小到出现精度/溢出前兆、`stts` 条目是否多到使恒帧率推断失效。
 
-**反例说明**：`ctts` version 1 的负偏移是合法的（B 帧），**不得**当回退。
-这条必须有专门单测，否则正常文件会被大面积误伤。
+**判定只用 DTS，不判 PTS**（`data/README §5.4`）：B 帧使 PTS 天然乱序——`ctts` 只用于
+"不把 PTS 乱序当回退"，本模块**根本不参与 PTS 判定**。回归判据只有一条：
+`dts[n] < dts[n-1] - policy.DTSRegressionTolerance`（容差 **0**，见 §5.4）。
+
+| RuleID | 判什么 | 证据（四元组要点） | 反例（不算违规） | 反例样本 id |
+|---|---|---|---|---|
+| `dts_regression` | 样本级 DTS **严格单调不减**被破坏（§5.4，0 容差） | 偏移 = 该 `stts` 条目的 `duration` 字段；`field_path` = `…/stts[n].duration`；`values` 含**样本序号** + **`stts` 条目号** + 前后 DTS；`delta` = 回退量 | **B 帧的 PTS 乱序**（只判 DTS）；`stts.duration` 无符号 ⇒ 良构 `stts` 的累计 DTS **不可能回退** | 无夹具（见下行合纪） |
+| `tfdt_regression` | 跨分片（同轨）`tfdt[k] < tfdt[k-1]`（0 容差） | 偏移 = **回退那一片** `tfdt` 值字段；`values` 含**分片序号** + 两条 `tfdt` 值 + **两处偏移**；`delta` = 回退量；`tfdt` **v0 32 位 / v1 64 位**分宽读 | 分片间 `tfdt` 正确递增 | `C5b`(v0)、`C5c`(v1)（反例 `K9-frag`） |
+| `zero_duration_entry` | `stts` 某条 `duration == 0`（多条样本落在同一时刻） | 偏移 = 该条的 `duration` 字段；`values` 含**条目号** + 样本数 + 原值 + 同轨标称时长；`delta` = 亏空 | ——（首期按 **fail** 报出，**不新增 gray**，§5.4） | `C5`（条目号 1） |
+| `dts_overflow_risk` | 累计 DTS 越过字段位宽（`stts` **32 位**；`tfdt` v0 32 / v1 64 分宽） | 偏移 = 越界处所在条目的 `duration` 字段；`values` 含**条目号 + 样本序号** + 越界累计值 + 字段位宽上限；`delta` = 超出量；用**整数运算，不浮点** | 未越界；`tfdt` v1（64 位头寸）不设越界 | `T2`（`stts` 累计 ≈ 2³²） |
+| `timescale_suspect` (gray) | `mdhd.timescale < policy.TimescaleSuspectBelow`（100）**且未触发** `dts_overflow_risk` | 偏移 = `mdhd.timescale` 字段；`gray.reason = timescale_suspect`（**闭集内，不新增 reason**） | 低 timescale 但已溢出 → 报 `dts_overflow_risk`（fail），不落本条；白名单值（90000 等）不报 | `T1`（`timescale=30`） |
+| `vfr_detected` (gray) | 同轨 `stts` 条目数 **> 1**（VFR 本身不是缺陷，只使恒帧率推断不可用） | `gray.reason = vfr_detected`（**闭集内**）；`values` 含条目数 | 单条目（恒帧率）；空 `stts`（分片轨，0 条不算多） | `C5`（同时落 `zero_duration_entry`+`vfr_detected`，**并列不互斥**；反例 `K5-dts`、`m3r*`） |
+
+**同一根因合并**（`plan/03 §1.3` / `HANDOFF-M4 §二 F15`）：`stts` 累计越过位宽时，字段宽度内的
+"回退"只是**溢出的表象**——同一根因只报 **`dts_overflow_risk` 一条**，不再单报 `dts_regression`。
+一处 `stts` 根因只报一条 `zero_duration_entry`/`dts_regression`。
+
+**为什么 `dts_regression` 在本夹具集里没有对应样本**（如实登记，非漏做）：
+`stts.duration` 是**无符号**，累计 DTS 单调不减，字面判据 `dts[n] < dts[n-1]` 对良构 `stts`
+**不可能为真**（`tools/fixture-gen/gen/builders_defects.go` 头注同样写明）。故 `data/README §4`
+的 C5「回退 DTS」用两条**可达**形态表达：`zero_duration_entry`（`C5`）与 `tfdt_regression`
+（`C5b`/`C5c`）。`dts_regression` 仍是模块 M3 的**完整判据**，"报样本序号 + 条目号 + 字节偏移"
+的证据契约由 `TestDTSRegressionCarriesSampleIndexEntryAndOffset` 钉住。
+
+**分宽读**（`F14`/`F17`）：`stts`/`ctts`/`tfdt` 都不是容器盒，IR 里只有盒本身，逐条字段用
+只读字节 + `PayloadStart()` 自己读，**全部带边界检查**（截断文件不 panic）。
+`ctts` v1 的偏移是**有符号**（负偏移合法，B 帧）——本模块不判 PTS，但分宽读的纪律仍由单测守，
+且 `m3-regression` 的 v1 负偏移样本必须 **0 finding**（`TestM3DoesNotMisjudgeBFrames`）。
+
+**字段路径的索引口径**（`F13`）：直接用 IR 的 `Box.Path`——单轨文件的路径是
+`moov/trak/mdia/minf/stbl/stts`（**不带** `trak[0]`）；条目号写在方括号里
+（`stts[1].duration`，从 0 起，**不排序**）；分片路径带同名兄弟索引（`moof[1]/traf/tfdt`）。
+
+**样本级遍历不落全量样本表**（`plan/01 §五 M3` 确定性纪律 / R4）：按 `stts` **条目**推进累计
+DTS（每条的 `count×duration` 用整数一次算完），只在越界点定位到条目号 + 样本序号——避免大文件内存爆炸。
+
+**对照组误报 0**：`controls` / `m3-regression` / `m4` / `m5` 四组共 **60 例**在模块 M3 下
+**一条 fail/gray 都不许有**，由 `cmd/mediatrace` 的 `TestM3MatchesFixtureTruth` 对整个夹具集
+对账（M3 相关缺陷 5 例 `C5`/`C5b`/`C5c`/`T1`/`T2` **集合相等** + 构造点字节偏移命中 +
+对照组零 finding）；`--modules M3` 的结论与 `--modules M1,M2,M3` 中的 M3 那一半必须一致
+（`TestM3SubsetConclusionIsStable`，G9）。**`m3-regression` 24 例（含 v1 负偏移 B 帧）就是本模块的门禁主体**。
 
 ---
 

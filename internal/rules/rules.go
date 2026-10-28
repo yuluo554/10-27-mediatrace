@@ -13,6 +13,7 @@ import (
 	"github.com/yuluo554/mediatrace/internal/report"
 	"github.com/yuluo554/mediatrace/internal/rules/duration"
 	"github.com/yuluo554/mediatrace/internal/rules/structure"
+	"github.com/yuluo554/mediatrace/internal/rules/timestamps"
 )
 
 // ErrNotImplemented 表示该模块在骨架期尚未实现。
@@ -42,7 +43,7 @@ type Module interface {
 var registry = []Module{
 	m1{}, // 结构自洽（M2 已实现 → internal/rules/structure）
 	m2{}, // 时长口径（M3 已实现 → internal/rules/duration）
-	m3{}, // 时间戳
+	m3{}, // 时间戳（M4 已实现 → internal/rules/timestamps）
 	m4{}, // 偏移 / priming
 	m5{}, // 显示与色彩
 }
@@ -76,9 +77,10 @@ func ByIDs(ids []string) ([]Module, error) {
 
 // ── 模块实现 ─────────────────────────────────────────────────────────────
 // m1（结构自洽）转调 internal/rules/structure；m2（时长口径）转调
-// internal/rules/duration。模块间不互相 import（archtest 守）；两个实现包都只依赖
-// isobmff/report/policy，故此处单向依赖无环。
-// m3–m5 仍是桩：Audit 返回 ErrNotImplemented，**不得**改成"返回空 findings"冒充 PASS。
+// internal/rules/duration；m3（时间戳）转调 internal/rules/timestamps。
+// 模块间不互相 import（archtest 守）；三个实现包都只依赖 isobmff/report/policy，
+// 故此处单向依赖无环。
+// m4/m5 仍是桩：Audit 返回 ErrNotImplemented，**不得**改成"返回空 findings"冒充 PASS。
 
 type m1 struct{}
 
@@ -98,8 +100,11 @@ func (m2) Audit(in Input) ([]report.Finding, error) {
 
 type m3 struct{}
 
-func (m3) ID() string                            { return "M3" }
-func (m3) Audit(Input) ([]report.Finding, error) { return nil, ErrNotImplemented }
+func (m3) ID() string { return timestamps.ModuleID }
+
+func (m3) Audit(in Input) ([]report.Finding, error) {
+	return timestamps.Audit(in.Root, in.Raw, in.FileName)
+}
 
 type m4 struct{}
 

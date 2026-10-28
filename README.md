@@ -22,20 +22,23 @@
 | **M1** | 数据先行（C1–C7 夹具 + 真值） | ✅ 已完成 |
 | **M2** | 结构判定（模块 M1） | ✅ 已完成 |
 | **M3** | 时长口径判定（模块 M2） | ✅ 已完成 |
-| **M4** | 时间戳判定（模块 M3） | ⬜ 未开工 |
+| **M4** | 时间戳判定（模块 M3） | ✅ 已完成 |
 | **M5** | 偏移与显示判定（模块 M4+M5）+ 报告 | ⬜ 未开工 |
 | **M6** | 发布（tag + Release + 留档） | ⬜ 未开工 |
 
-> **当前进度**：**M1 数据先行 + M2 结构判定 + M3 时长口径判定已收尾**。模块
-> **M1（结构自洽）** 与 **M2（时长口径）** 已实现：
+> **当前进度**：**M1 数据先行 + M2 结构判定 + M3 时长口径判定 + M4 时间戳判定已收尾**。模块
+> **M1（结构自洽）**、**M2（时长口径）** 与 **M3（时间戳）** 已实现：
 > - `mediatrace audit <file> --modules M1` → `duplicate_moov` / `stco_out_of_mdat` /
 >   `truncated_mdat` / `child_overruns_parent` / `duplicate_mdat` / `max_depth_exceeded` 等八条规则；
 > - `mediatrace audit <file> --modules M2` → `duration_mismatch`（三口径互比，1 tick 容差）/
 >   `elst_item_rate_not_one`（报条目号）/ `elst_item_order_suspect` / `empty_edit` /
->   `first_pts_outside_media` / `duration_unknown`（gray）。
+>   `first_pts_outside_media` / `duration_unknown`（gray）；
+> - `mediatrace audit <file> --modules M3` → `tfdt_regression`（跨分片回退）/ `zero_duration_entry` /
+>   `dts_overflow_risk`（位宽越界）/ `dts_regression`（DTS 0 容差单调）/ `timescale_suspect`（gray）/
+>   `vfr_detected`（gray）——**只看 DTS，B 帧的 PTS 乱序不误伤**。
 >
-> 每条 `fail` 带四元组证据；对 92 例合成夹具**召回精确、对照组 60 例误报 0**（M1、M2 各自核对）。
-> 模块 M3–M5（时间戳/偏移/显示）尚未实现（`--modules` 对它们明确返回退出码 3，**不冒充 PASS**）。
+> 每条 `fail` 带四元组证据；对 92 例合成夹具**召回精确、对照组 60 例误报 0**（M1、M2、M3 各自核对）。
+> 模块 M4–M5（偏移/显示）尚未实现（`--modules` 对它们明确返回退出码 3，**不冒充 PASS**）。
 > 计划与口径见 `plan/`，续接入口是 `plan/00-README总览.md`。
 
 ## 快速开始
@@ -52,6 +55,8 @@ node tools/tasks.mjs all            # 以上一键跑
 bin/mediatrace --version
 # 结构判定（模块 M1 已实现）：
 bin/mediatrace audit fixtures/out/c2_stco_out_of_mdat.mp4 --modules M1
+# 时间戳判定（模块 M3 已实现）：跨分片 tfdt 回退 / stts 零时长 / 位宽越界 / 极小时基
+bin/mediatrace audit fixtures/out/c5b_tfdt_regression.mp4 --json --modules M3
 ```
 
 > Go 不在 `PATH` 时：`GO=/path/to/go node tools/tasks.mjs test`。
