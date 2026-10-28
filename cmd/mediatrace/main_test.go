@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/yuluo554/mediatrace/internal/policy"
+	"github.com/yuluo554/10-27-mediatrace/internal/policy"
 )
 
 // mkFile 写一个最小合法 MP4 结构到临时文件并返回路径。

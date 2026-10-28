@@ -4,9 +4,9 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"github.com/yuluo554/mediatrace/internal/isobmff"
-	"github.com/yuluo554/mediatrace/internal/policy"
-	"github.com/yuluo554/mediatrace/internal/report"
+	"github.com/yuluo554/10-27-mediatrace/internal/isobmff"
+	"github.com/yuluo554/10-27-mediatrace/internal/policy"
+	"github.com/yuluo554/10-27-mediatrace/internal/report"
 )
 
 // ── 本地字节构造（不复用生成器：K8 生成器与解析器不共享代码）──────────────

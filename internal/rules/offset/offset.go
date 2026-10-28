@@ -29,8 +29,8 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/yuluo554/mediatrace/internal/isobmff"
-	"github.com/yuluo554/mediatrace/internal/report"
+	"github.com/yuluo554/10-27-mediatrace/internal/isobmff"
+	"github.com/yuluo554/10-27-mediatrace/internal/report"
 )
 
 // ModuleID 是模块号。

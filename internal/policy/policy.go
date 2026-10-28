@@ -6,8 +6,8 @@
 package policy
 
 // Version 是 CLI 的语义版本；发布时由 -ldflags 覆盖。
-// 唯一定义处：这里。make bin 会注入同一值（见 Makefile 的 VERSION）。
-const Version = "0.1.0-dev"
+// 唯一定义处：这里。`node tools/tasks.mjs bin|cross` 注入同一值（见 tasks.mjs 的 VERSION）。
+const Version = "0.1.0"
 
 // TickTolerance 是时长口径互比的容差（单位：对齐后的 tick）。
 // 出处：data/README.md §5.1（工程口径，非规范条款）。

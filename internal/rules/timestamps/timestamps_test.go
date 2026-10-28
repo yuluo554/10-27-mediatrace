@@ -4,9 +4,9 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"github.com/yuluo554/mediatrace/internal/isobmff"
-	"github.com/yuluo554/mediatrace/internal/policy"
-	"github.com/yuluo554/mediatrace/internal/report"
+	"github.com/yuluo554/10-27-mediatrace/internal/isobmff"
+	"github.com/yuluo554/10-27-mediatrace/internal/policy"
+	"github.com/yuluo554/10-27-mediatrace/internal/report"
 )
 
 // 证据塑形：`dts_regression` 必须报**样本序号 + stts 条目号 + 字节偏移**，

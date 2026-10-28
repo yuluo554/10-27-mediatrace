@@ -9,13 +9,13 @@ package rules
 import (
 	"errors"
 
-	"github.com/yuluo554/mediatrace/internal/isobmff"
-	"github.com/yuluo554/mediatrace/internal/report"
-	"github.com/yuluo554/mediatrace/internal/rules/display"
-	"github.com/yuluo554/mediatrace/internal/rules/duration"
-	"github.com/yuluo554/mediatrace/internal/rules/offset"
-	"github.com/yuluo554/mediatrace/internal/rules/structure"
-	"github.com/yuluo554/mediatrace/internal/rules/timestamps"
+	"github.com/yuluo554/10-27-mediatrace/internal/isobmff"
+	"github.com/yuluo554/10-27-mediatrace/internal/report"
+	"github.com/yuluo554/10-27-mediatrace/internal/rules/display"
+	"github.com/yuluo554/10-27-mediatrace/internal/rules/duration"
+	"github.com/yuluo554/10-27-mediatrace/internal/rules/offset"
+	"github.com/yuluo554/10-27-mediatrace/internal/rules/structure"
+	"github.com/yuluo554/10-27-mediatrace/internal/rules/timestamps"
 )
 
 // ErrNotImplemented 曾用于骨架期未实现的模块；五个模块现已全部实现，此错误保留为

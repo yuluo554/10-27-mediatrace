@@ -18,7 +18,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/yuluo554/mediatrace/tools/fixture-gen/gen"
+	"github.com/yuluo554/10-27-mediatrace/tools/fixture-gen/gen"
 )
 
 // manifestEntry 是 manifest.json 的一行（真值标签）。

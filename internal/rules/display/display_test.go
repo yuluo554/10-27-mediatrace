@@ -4,8 +4,8 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"github.com/yuluo554/mediatrace/internal/isobmff"
-	"github.com/yuluo554/mediatrace/internal/report"
+	"github.com/yuluo554/10-27-mediatrace/internal/isobmff"
+	"github.com/yuluo554/10-27-mediatrace/internal/report"
 )
 
 // ── 字节构造小工具（测试内自足，不引用生成器：K8）──────────────────────────

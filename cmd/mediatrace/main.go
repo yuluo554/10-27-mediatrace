@@ -19,10 +19,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/yuluo554/mediatrace/internal/isobmff"
-	"github.com/yuluo554/mediatrace/internal/policy"
-	"github.com/yuluo554/mediatrace/internal/report"
-	"github.com/yuluo554/mediatrace/internal/rules"
+	"github.com/yuluo554/10-27-mediatrace/internal/isobmff"
+	"github.com/yuluo554/10-27-mediatrace/internal/policy"
+	"github.com/yuluo554/10-27-mediatrace/internal/report"
+	"github.com/yuluo554/10-27-mediatrace/internal/rules"
 )
 
 // version 可被 -ldflags "-X main.version=..." 覆盖。

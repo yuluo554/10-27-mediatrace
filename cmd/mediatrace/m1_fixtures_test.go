@@ -8,10 +8,10 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/yuluo554/mediatrace/internal/policy"
-	"github.com/yuluo554/mediatrace/internal/report"
-	"github.com/yuluo554/mediatrace/internal/rules/structure"
-	"github.com/yuluo554/mediatrace/tools/fixture-gen/gen"
+	"github.com/yuluo554/10-27-mediatrace/internal/policy"
+	"github.com/yuluo554/10-27-mediatrace/internal/report"
+	"github.com/yuluo554/10-27-mediatrace/internal/rules/structure"
+	"github.com/yuluo554/10-27-mediatrace/tools/fixture-gen/gen"
 )
 
 // M2 DoD：模块 M1 对全部 92 例夹具的结论 —— 缺陷类召回、对照组误报 0。

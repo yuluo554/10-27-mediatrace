@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/yuluo554/mediatrace/internal/policy"
-	"github.com/yuluo554/mediatrace/internal/report"
-	"github.com/yuluo554/mediatrace/internal/rules/display"
-	"github.com/yuluo554/mediatrace/tools/fixture-gen/gen"
+	"github.com/yuluo554/10-27-mediatrace/internal/policy"
+	"github.com/yuluo554/10-27-mediatrace/internal/report"
+	"github.com/yuluo554/10-27-mediatrace/internal/rules/display"
+	"github.com/yuluo554/10-27-mediatrace/tools/fixture-gen/gen"
 )
 
 // M5 的误报门覆盖"所有不是 M5 目标的样本"：controls 16 + m3-regression 24 +
