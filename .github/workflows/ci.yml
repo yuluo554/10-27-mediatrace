@@ -119,5 +119,8 @@ jobs:
           # 旧写法 `if command -v ffmpeg; then exit 1` 在首推时必红（把环境当断言）。
           # 正解 = 清空 PATH 后仍跑通：运行期若 spawn 任何外部程序（ffmpeg/MP4Box）会立刻失败。
           # 这一条只是烟测；"判定路径不 import net、不起子进程" 由 internal/archtest G7/G8 常驻断言。
+          #
+          # 注意用顶层 `--help`（exit 0），不要用 `audit --help`：后者走 flag 包的 ErrHelp，
+          # 按 CLI 契约是"用法错误"= 退出码 3（见 data/README §5.6），不是成功路径。
           PATH=/nonexistent ./dist/mediatrace-linux-amd64 --version
-          PATH=/nonexistent ./dist/mediatrace-linux-amd64 audit --help >/dev/null
+          PATH=/nonexistent ./dist/mediatrace-linux-amd64 --help >/dev/null

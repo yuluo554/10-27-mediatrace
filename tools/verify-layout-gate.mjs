@@ -318,18 +318,26 @@ expectFail("M8.DOC_TOOLS", LAYOUT, () =>
   "LAYOUT.DOC_TOOLS");
 expectFail("M9.GITIGNORE", LAYOUT, () => mutate(".gitignore", (t) => t.replace(/^\.mimosa\/?$/m, "# (规则被删)")), "LAYOUT.GITIGNORE");
 // 发布里程碑（状态表里最大的号）翻 ✅ 但没有 RELEASE-M6.md → 留档判据必须红。
-// 进度无关：发布里程碑尚未 ✅ 时翻它；若它已 ✅ 且留档在位，则把留档藏起来（同一判据必须红）。
+//
+// **必须与进度无关**：早先写成二分（"未 ✅ 就翻它 / 已 ✅ 就藏留档"），
+// 前提是"留档文件还不存在"——留档一落盘，翻 ✅ 反而让 LAYOUT.RELEASE 变绿，
+// 于是红的只剩 LAYOUT.LEDGER（台账行仍挂 M6），被判"红了但不是 LAYOUT.RELEASE"。
+// 这正是文件头警告的"靶子依赖进度状态"的第三次变体（本项目 M6 首推实测）。
+// 现在统一：**翻 ✅（若还是待办）+ 藏留档**，两种进度下留档判据都必须红。
 const releaseKey = statusRows().map((r) => Number(r.key.slice(1))).reduce((a, b) => Math.max(a, b), 0);
 const REL = `M${releaseKey}`;
-const releaseIsDone = !statusRows().find((r) => r.key === REL)?.pending;
-if (releaseIsDone) {
-  expectFail("M10.RELEASE", LAYOUT, () => compose(
-    () => (existsSync(join(ROOT, `plan/RELEASE-${REL}.md`)) ? hide(`plan/RELEASE-${REL}.md`) : () => {}),
-    () => (existsSync(join(ROOT, `plan/WRAPUP-${REL}.md`)) ? hide(`plan/WRAPUP-${REL}.md`) : () => {}),
-  ), "LAYOUT.RELEASE");
-} else {
-  expectFail("M10.RELEASE", LAYOUT, () => compose(...flipAll(REL, "✅ 已完成")), "LAYOUT.RELEASE");
-}
+const releasePending = statusRows().find((r) => r.key === REL)?.pending ?? false;
+expectFail(
+  "M10.RELEASE",
+  LAYOUT,
+  () =>
+    compose(
+      ...(releasePending ? flipAll(REL, "✅ 已完成") : []),
+      () => (existsSync(join(ROOT, `plan/RELEASE-${REL}.md`)) ? hide(`plan/RELEASE-${REL}.md`) : () => {}),
+      () => (existsSync(join(ROOT, `plan/WRAPUP-${REL}.md`)) ? hide(`plan/WRAPUP-${REL}.md`) : () => {}),
+    ),
+  "LAYOUT.RELEASE",
+);
 
 // ── 脱敏门变异（4 条规则各一组）──────────────────────────────────────
 const probe = "docs/_desens-probe.md";
