@@ -39,14 +39,14 @@
 
 ## 二、tag 后追加
 
-> **待回填**（推送与 Release 完成后由执行方补齐；在此之前本栏为空是**如实状态**，不是遗漏）。
+> **已回填**（推送与 Release 完成后由执行方补齐；以下均为第 2–6 步实测值）。
 
 | 项 | 事实 |
 | --- | --- |
-| tag 对象 / 剥壳提交 | 待填 |
-| Release URL / draft 状态 | 待填 |
-| 三附件尺寸 + sha256 | 待填（须与第 3 步的本机重建件逐字节相同） |
-| `SHA256SUMS` 的 sha256 | 待填 |
-| 真下载复核 | 待填 |
-| CI run id 与结论 | 待填 |
-| `v0.1.0` 是否动过 | **未动**（历史不改写） |
+| tag 对象 / 剥壳提交 | tag OID `33ad94c417bbfbf1c3357aa5a919ac40b6bb3818`（`git cat-file -t` = `tag`，annotated）；剥壳提交 `22df1e733b95efa52eece1608a558d31637dd3b4`（== 已验 CI 的 HEAD）；tagger `yuluo554 <282769740+yuluo554@users.noreply.github.com>` |
+| Release URL / draft 状态 | https://github.com/yuluo554/10-27-mediatrace/releases/tag/v0.1.1 ；实测 `isDraft=false` / `isPrerelease=false` |
+| 三附件尺寸 + sha256 | linux-amd64 2068664 B `67c3e65f19291458fefa7ab069ae6ee7ff3ead9ffbec2982a66fd0086e5ab199`；darwin-arm64 2111730 B `486d669af9ceb46df075a93b0b16c1b957aa8468aa6f87da53464aaf6b98da2b`；windows-amd64.exe 2201088 B `ab094631a57ae14d935b132a11b2a5297d0a44d2f7254fba33c51da470a35323`（与 tag 树真 clone 重建件 `cmp` 逐字节相同） |
+| `SHA256SUMS` 的 sha256 | `dc60a32ed00dedc3fdf135b08eeed2403670ae673c8081c2e2aaf2ad12069ad7`（274 B，三行 LF，`*` 二进制模式，沿用 v0.1.0 形态） |
+| 真下载复核 | 中立目录 `gh release download v0.1.1` → `sha256sum -c SHA256SUMS` 三件 OK / rc=0；`cmp` 三件均 `IDENTICAL`（LINUX/DARWIN/WINDOWS） |
+| CI run id 与结论 | push main：run `40695823858`（headSha `22df1e7`，event=push）6 条 check-run 全 `success`（layout / test(ubuntu) / test(macos) / test(windows) / fixtures / cross）。注解 5 条，全部 notice：ubuntu-latest→Ubuntu26 迁移 4 条（cross / fixtures / layout / test-ubuntu）+ macOS 队列 1 条（test-macos）；**Node.js 20 弃用 warning 0 条**。注：本仓 workflow 仅触发 `push: branches:[main]` 与 `pull_request`，**无 `tags:` 触发**，故 tag 推送不产生第二条 run（本轮实测 run 列表 event 全为 push）。 |
+| `v0.1.0` 是否动过 | **未动**（历史不改写）：四附件尺寸仍为 2064568 / 2095202 / 2198528 / 274，`isDraft=false` |
