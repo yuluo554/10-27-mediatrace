@@ -8,7 +8,7 @@
 
 - **性质**：不参赛项目题 · 发布 GitHub **公开仓库** · 署名 yuluo554
 - **产出**：仓库 `10-27-mediatrace`，命令入口 `mediatrace`；**纯本地单二进制 CLI，只读字节、不解码、运行时不依赖 ffmpeg**
-- **状态**：**M1 数据先行 + M2 结构判定 + M3 时长口径判定 + M4 时间戳判定已收尾**（阶段 0 装订 + `plan/00`–`06` + `data/README` + 代码骨架 + 两门 + CI 工作流 + **92 例夹具 / 22 条真实样本登记**已落盘；模块 **M1/M2/M3 已实现并对夹具集对账**；M5–M6 未开工）
+- **状态**：**M1–M5 已收尾，五个判定模块全部实现**（阶段 0 装订 + `plan/00`–`06` + `data/README` + 两门 + CI 工作流 + **92 例夹具 / 22 条真实样本登记**已落盘；模块 **M1/M2/M3/M4/M5 均已实现并对夹具集对账**；M6 发布未开工）
 - **定位宣言**："ffprobe、MediaInfo、MP4Box、Bento4、mkvalidator 各给一份'我看到的样子'，彼此不对话；mediabunny 明知 `elst` 有它不支持的指令却只 `console.warn`；唯一做过策略判定的 MediaConch 已于 2021 停更，且只查格式合规不查同文件内部字段互相矛盾。**所有人都在'打印'，没有人在'判定'。**"
 - **基准日**：2026-10-27（代理实际检索窗口 **2026-10-27T10:56Z–11:22Z**；标签 `10-27` 是系列编号，不是检索日期）
 
@@ -30,15 +30,16 @@
 | `plan/HANDOFF-M2.md` | **交给第 2 棒（M2 结构判定）的入口交接单**（七节齐）；**M2 收尾已补 DoD 结果** | ✅ M2 |
 | `plan/HANDOFF-M3.md` | **交给第 3 棒（M3 时长口径判定）的入口交接单**（七节齐）；**M3 收尾已补 DoD 结果** | ✅ M3 |
 | `plan/HANDOFF-M4.md` | **交给第 4 棒（M4 时间戳判定）的入口交接单**（七节齐）；**M4 收尾已补 DoD 结果** | ✅ M4 |
-| `plan/HANDOFF-M5.md` | **交给第 5 棒（M5 偏移与显示判定）的入口交接单**（七节齐） | ✅ M4 收尾时写 |
+| `plan/HANDOFF-M5.md` | **交给第 5 棒（M5 偏移与显示判定）的入口交接单**（七节齐）；**M5 收尾已补 DoD 结果** | ✅ M5 |
+| `plan/HANDOFF-M6.md` | **交给第 6 棒（M6 发布）的入口交接单**（七节齐） | ✅ M5 收尾时写 |
 | `plan/RELEASE-M6.md` | 发布留档（tag 前事实 / tag 后追加两栏） | ⬜ 待 M6 |
 | `README.md`（仓库根） | 用户向：定位 / 快速开始 / 退出码 / 隐私 | ✅ 骨架期（M5 定稿措辞） |
 | `LICENSE` | MIT | ✅ 骨架期 |
 | `data/README.md` | 依据查证三态 + 技术事实核实台账 + 数据源可获取性 + 合成数据纪律 + **数值口径单一定义** | ✅ v1 |
 | `data/real-samples.json` | 真实样本登记表（sha256 + URL + 许可；样本本体不入库） | ✅ M1（22 条，全部 `verified: null`） |
-| `docs/rules.md` | 每条规则的人类可读说明与反例 | ✅ M4（模块 M1 + M2 + M3 的规则与反例样本 id 已落；M4–M5 待各自棒次） |
-| `docs/report-schema.md` | `pass/fail/gray` 三态 JSON 结构 + 首屏三段 + 退出码 | ✅ 骨架期 |
-| `docs/fixture-pools.md` | 强制构造 C1–C7 的生成纪律 | ✅ M4（C1–C7 构造器全实现 + 三组对照；M1 结构判定、M2 时长判定与 M3 时间戳判定均已对账） |
+| `docs/rules.md` | 每条规则的人类可读说明与反例 | ✅ M5（模块 M1–M5 的规则与反例样本 id 全覆盖） |
+| `docs/report-schema.md` | `pass/fail/gray` 三态 JSON 结构 + 首屏三段 + 退出码 | ✅ M5（定稿；首期不做 `--suite`，`GATE` 段不出现） |
+| `docs/fixture-pools.md` | 强制构造 C1–C7 的生成纪律 | ✅ M5（C1–C7 构造器全实现 + 四组对照；M1–M5 五个模块均已对账） |
 | `tools/check-sprint-layout.mjs` | 布局门（11 条判据） | ✅ 骨架期 |
 | `tools/check-desensitized.mjs` | 脱敏门（4 条规则） | ✅ 骨架期 |
 | `tools/verify-layout-gate.mjs` | 两门自己的变异验证（21 组，每组必按预期变红） | ✅ 骨架期 |
@@ -96,15 +97,15 @@
 | 三口径时长互比（`stts` / `mvhd`+`tkhd` / `Σelst`）容差 1 tick | `data/README §5` | 纯本地 | S1 类"copy 前后差"复现；差 2× 样本（S7 类）命中 | ✅ M3 |
 | `elst` 条目按序编号，`media_rate≠1` 定位到条目号 | 决策 D10；mediabunny #494 原话 | 纯本地 | GPAC `-edits` 造 3 段（含 `media_rate≠1`）逐条定位 | ✅ M3 |
 | DTS 单调 + 位宽溢出前兆判定 | S5 / S10 / S4 | 纯本地 | "回退 DTS"合成例命中并给样本序号；≥20 正常 H.264/H.265 文件误报 0 | ✅ M4 |
-| priming / encoder delay 报值与期望比对 | S3 原话；`sgpd`/`sbgp` roll | 纯本地 | "1024 samples 晚"报出 1024；正反例各 5 个 | ⬜ M5 |
-| matrix 正交性 + 呈现宽高 + SAR | 锚点 5（ISO 14496-12 §6.2.2）；S11 | 纯本地 | "matrix=±90 且 width<height 无 pasp"命中；正常竖屏不报 | ⬜ M5 |
-| `colr`/`mdcv`/`clli` 量程互斥 + 缺失落 gray | 锚点 6/8 | 纯本地 | bt2020 无 `mdcv`/`clli` → `gray` 且可导出 | ⬜ M5 |
-| 每条 fail 带 偏移+字段路径+值+差值 | 设计 | 报告结构 | `docs/report-schema.md` 校验测试：四字段缺一即测试红 | ⬜ M5 |
-| 三态 + `gray.reason` 枚举 + 不计入 fail | 决策 D2/D11 | 报告结构 | 计数一致性测试；`gray` 出现 `parse_error` 类 reason 即测试红 | ⬜ M5 |
-| 报告同源（先算一次再渲染 MD/JSON） | 设计 | 纯本地 | 两份渲染的 finding 集合按 fingerprint 相等 | ⬜ M5 |
-| 退出码语义 | `data/README §5` | CLI 契约 | 各退出码各一条测试（进程级 + `main()` 级） | ⬜ M5 |
-| 确定性：同输入两次运行逐字节一致 | 设计 | 纯本地 | 双跑 diff 为空（含 `--modules` 子集） | ⬜ M5 |
-| 纯本地零网络 | 红线 | 无网络客户端依赖 | AST/符号扫描 0 命中 | ⬜ M5 |
+| priming / encoder delay 报值与期望比对 | S3 原话；`sgpd`/`sbgp` roll | 纯本地 | "1024 samples 晚"报出 1024；正反例各 5 个 | ✅ M5 |
+| matrix 正交性 + 呈现宽高 + SAR | 锚点 5（ISO 14496-12 §6.2.2）；S11 | 纯本地 | "matrix=±90 且 width<height 无 pasp"命中；正常竖屏不报 | ✅ M5 |
+| `colr`/`mdcv`/`clli` 量程互斥 + 缺失落 gray | 锚点 6/8 | 纯本地 | bt2020 无 `mdcv`/`clli` → `gray` 且可导出 | ✅ M5 |
+| 每条 fail 带 偏移+字段路径+值+差值 | 设计 | 报告结构 | `docs/report-schema.md` 校验测试：四字段缺一即测试红 | ✅ M5 |
+| 三态 + `gray.reason` 枚举 + 不计入 fail | 决策 D2/D11 | 报告结构 | 计数一致性测试；`gray` 出现 `parse_error` 类 reason 即测试红 | ✅ M5 |
+| 报告同源（先算一次再渲染 MD/JSON） | 设计 | 纯本地 | 两份渲染的 finding 集合按 fingerprint 相等 | ✅ M5 |
+| 退出码语义 | `data/README §5` | CLI 契约 | 各退出码各一条测试（进程级 + `main()` 级） | ✅ M5 |
+| 确定性：同输入两次运行逐字节一致 | 设计 | 纯本地 | 双跑 diff 为空（含 `--modules` 子集） | ✅ M5 |
+| 纯本地零网络 | 红线 | 无网络客户端依赖 | AST/符号扫描 0 命中 | ✅ M5 |
 | 合成缺陷集 ≥25 例 + 真实样本 ≥20 例 | `data/README §4` | 生成器随包 | 门禁三数打印在首屏 | ✅ M1（合成 92 例、真实登记 22 条；真实样本**复跑**待各判定模块） |
 | 发布三件套：tag + Release 附产物 + 发布留档 | 发布纪律 | 公开仓库 | `plan/RELEASE-M6.md` 无空项 | ⬜ M6 |
 
@@ -144,7 +145,7 @@
 | **M2 · 结构判定** | 盒子树迭代遍历 IR + 模块 M1 全部规则（`size` 展开、子盒越界、`moov`/`mdat` 唯一、`stco+stsz ⊆ mdat`、`ftyp` 品牌一致）；MKV EBML 结构对应项顺延（首期夹具与生成器均为 MP4，见 `plan/06 §三` 缺口行） | 模块 M1 | 三例（双 moov / stco 越界 / 截断 mdat）命中 **3/3**、误报 **0**；深盒树不爆栈；每 fail 带偏移 | ✅ |
 | **M3 · 时长口径判定** | 模块 M2：三口径互比（1 tick 容差）、`elst` 按序编号、`media_time` 与首帧 PTS、空 edit 语义、`media_rate≠1` 报条目号 | 模块 M2 | GPAC 造 3 段 `elst` 逐条定位；S1 类"copy 前后差"可复现；S7 类 2× 时长命中 | ✅ |
 | **M4 · 时间戳判定** | 模块 M3：DTS 单调、`ctts`→PTS、位宽溢出前兆、timescale 白名单/极小值、VFR 落 gray | 模块 M3 | "回退 DTS"命中并给样本序号；**≥20 正常 H.264/H.265 文件误报 0** | ✅ |
-| **M5 · 偏移与显示判定** | 模块 M4（priming/encoder delay、起始裁剪）+ 模块 M5（matrix 正交性、呈现宽高、SAR、`colr`/`mdcv`/`clli` 量程与互斥）+ 报告三态与首屏三段 + 退出码 | 模块 M4 + M5 | "1024 晚"报出 1024；正反例各 5 个；matrix=±90 命中且正常竖屏不报；`gray` 可导出且不计 fail；同输入逐字节一致 | ⬜ |
+| **M5 · 偏移与显示判定** | 模块 M4（priming/encoder delay、起始裁剪）+ 模块 M5（matrix 正交性、呈现宽高、SAR、`colr`/`mdcv`/`clli` 量程与互斥）+ 报告三态与首屏三段 + 退出码 | 模块 M4 + M5 | "1024 晚"报出 1024；正反例各 5 个；matrix=±90 命中且正常竖屏不报；`gray` 可导出且不计 fail；同输入逐字节一致 | ✅ |
 | **M6 · 发布** | 脱敏复核 + 公开仓库发布 | — | **DoD 三件套 = `git tag` + GitHub Release（附产物：单二进制 + `SHA256SUMS`）+ 发布留档 `plan/RELEASE-M6.md`（tag 前落盘进 tag 树，含"tag 时点事实 / tag 后追加事实"两栏）**；公开仓库可匿名克隆 | ⬜ |
 
 > **DoD 产物口径**：Release 附产物（单二进制 + `SHA256SUMS`）。该口径自首提交起不得降级。
@@ -156,7 +157,7 @@
 ## 六、续接入口
 
 1. 读本文档 §五，找第一个 `⬜` 的阶段 → 该阶段即当前棒次。
-2. **读该棒的入口交接单** `plan/HANDOFF-M<k>.md`（当前是 `plan/HANDOFF-M4.md`）——
+2. **读该棒的入口交接单** `plan/HANDOFF-M<k>.md`（当前是 `plan/HANDOFF-M6.md`）——
    它的 §二「当前事实·状态不变量」是"不读就会踩"的清单，§四 是 K 口径清单。
 3. 读 `plan/01` 对应模块的"输入/输出/验收/确定性纪律"四栏。
 4. 一切数值口径（容差、阈值、白名单、退出码）**只查 `data/README.md §5`**，不要在其它文档里找第二份。

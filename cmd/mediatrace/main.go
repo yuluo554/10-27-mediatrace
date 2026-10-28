@@ -133,8 +133,8 @@ func runAudit(args []string, stdout, stderr io.Writer) int {
 		found, err := m.Audit(in)
 		if err != nil {
 			if errors.Is(err, rules.ErrNotImplemented) {
-				// 骨架期：模块未实现 → 不得冒充 PASS（退出码 3）
-				fmt.Fprintf(stderr, "mediatrace: module %s not implemented yet (skeleton stage)\n", m.ID())
+				// 五个模块均已实现；此分支保留为防御（若将来新增模块忘接实现，仍不得冒充 PASS）。
+				fmt.Fprintf(stderr, "mediatrace: module %s not implemented yet\n", m.ID())
 				return policy.ExitUsage
 			}
 			fmt.Fprintf(stderr, "mediatrace: module %s failed: %v\n", m.ID(), err)

@@ -1,6 +1,6 @@
 # 报告格式规范（`pass` / `fail` / `gray` 三态）
 
-> 状态：**骨架期草稿**（M5 定稿）。口径真相源：`data/README.md §5.5–§5.7`。
+> 状态：**定稿（M5）**。口径真相源：`data/README.md §5.5–§5.7`。
 > 实现：`internal/report/report.go`（模型 + 校验 + 渲染），`cmd/mediatrace`（入口）。
 
 ---
@@ -76,6 +76,9 @@ GATE: synthetic 25/25 real 20/20 false_positive 0
   （`plan/01 §七.3`）。无 fail/gray 时为 `FIRST: none`。
 - **`GATE`**：**只在 `--suite` 批跑时出现**；单文件审计不打印（避免"单文件全绿 = 通过门禁"的误读，
   `data/README §5.6`）。
+- **首期决定（M5）**：`--suite` 批跑模式**首期不实现**，因此 `GATE` 段**不出现**。门禁三数
+  （合成样本数 / 真实样本数 / 误报数）改由 `node tools/tasks.mjs all` 的夹具门与对账测试承担；
+  单文件审计只打印 `VERDICT` 与 `FIRST` 两段。此决定与 `plan/01 §七.3`、`README.md` 同步。
 
 ---
 
@@ -95,7 +98,7 @@ GATE: synthetic 25/25 real 20/20 false_positive 0
 | `0` | PASS | `fail == 0 && gray == 0` |
 | `1` | FAIL | `fail >= 1`（不论 gray） |
 | `2` | INCONCLUSIVE | `fail == 0 && gray >= 1` |
-| `3` | 用法/解析错误 | 参数非法、不可读、盒子树无法建立、模块未实现 |
+| `3` | 用法/解析错误 | 参数非法、不可读、盒子树无法建立 |
 
 唯一实现处：`internal/policy.ExitCodeFor`（测试逐位断言优先级 `1 > 2 > 0`）。
 

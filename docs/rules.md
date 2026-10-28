@@ -1,7 +1,7 @@
 # 规则表（人类可读 + 反例）
 
-> 状态：**M4 已收尾**——已实现**模块 M1（结构自洽）**、**模块 M2（时长口径）**与
-> **模块 M3（时间戳）**；模块 M4–M5（偏移/显示）的规则 ID 已定名，实现待 M5。
+> 状态：**M5 已收尾**——五个模块（M1 结构自洽 / M2 时长口径 / M3 时间戳 / M4 偏移与 priming /
+> M5 显示与色彩）**全部实现**并对 92 例夹具对账；对照组误报 0。
 > 规则 ID 与 `internal/rules/` 实现一一对应。
 > 口径数字只在 `data/README.md §5`；本文只写"规则在判什么、什么不算违规"。
 > 本节的反例样本 id 一律指向 `fixtures/out/manifest.json` 里的 `case_id`。
@@ -162,32 +162,65 @@ DTS（每条的 `count×duration` 用整数一次算完），只在越界点定�
 
 ## M4 · 偏移 / priming
 
-| RuleID | 判什么 | 反例（不算违规） |
-|---|---|---|
-| `start_trim` | `elst[0].media_time > 0` | 起点 0 |
-| `priming_undeclared` | 首帧后移且无裁剪 edit | 已用 `elst` 正确裁剪 |
-| `priming_mismatch` | roll 距离 ≠ 期望 | 编码未知 → gray |
-| `no_edts_but_nonzero_start` | 无 `edts` 且起点非 0（gray） | 起点为 0 |
-| `no_roll_distance` | 无 roll 距离（gray） | — |
-| `unknown_codec_priming` | 编码不在已知集（gray） | AAC/Opus |
+实现：`internal/rules/offset/`（模块号 `M4`；`rules.go` 里 `m4` 转调它）。
+判定对象是**音频轨的起始偏移与 encoder delay**：编辑表声明的起点裁剪、首帧 PTS 的后移量、
+容器用 `sgpd`/`sbgp` roll 距离（或 Opus `dOps.preSkip`）声明的 priming —— 三者是否互相自洽。
 
-**注意**：AAC 1024 / Opus 312 是**常见观测值，不是规范强制**。只判"与声明是否一致"，
-不判"必须等于 1024"。
+**只判音频轨**：视频轨的 `ctts` 偏移是 B 帧重排，不是起始偏移；本模块对非音频轨**不做**判定
+（否则会误伤所有含 B 帧的正常视频）。
+
+**期望 priming = 声明值**（`K14` / `data/README §2`）：容器声明多少就按多少比。AAC 1024 / 2112、
+Opus 312 都是**观测值，不是规范条款**——本模块**不判"必须等于 1024"**，只判"裁剪与声明是否一致"。
+
+| RuleID | 判什么 | 证据（四元组要点） | 反例（不算违规） | 反例/正例样本 id |
+|---|---|---|---|---|
+| `priming_undeclared` | 首帧 PTS 后移且**无**裁剪 edit、且容器**无** roll 声明（后移量就是未声明 priming 的直接证据） | 偏移 = 首条 `ctts` 的 `sample_offset`；`field_path` = `…/ctts[0].sample_offset`；`values` 含后移样本数 + `mdhd.timescale`；`delta` = 后移量 | 已用 `elst` 正确裁剪；无后移；有 roll 声明（→ `no_edts`） | `C6`/`M4P1`（报 **1024**）、`M4P2`（报 **2112**） |
+| `start_trim` | 编辑表裁剪量 **> 期望 priming** —— 越过 priming 剪进正片 | 偏移 = `elst[0].media_time`；`values` 含 media_time(tick) + 裁剪样本数 + **秒值(millis)** + 期望值与来源；`delta` = 裁剪 − 期望 | 裁剪 == 期望（正确裁剪）；裁剪 < 期望（→ `priming_mismatch`） | `M4P4`（裁剪 2048 > roll 1024） |
+| `priming_mismatch` | 编辑表裁剪量 **< 期望 priming** —— 容器说多、编辑说少，两处声明对不上 | 偏移 = `elst[0].media_time`；`values` 含裁剪量 + 期望值与来源；`delta` = 期望 − 裁剪 | 裁剪 == 期望 | `C6c`/`M4P5`（roll 1152 > 裁剪 1024）、`M4P3`（roll 1024 > 裁剪 512） |
+| `no_roll_distance` (gray) | 有声轨裁剪且有 edit，但**无** `sgpd`/`sbgp` roll 距离 —— 期望值不可推 | 偏移 = `elst[0].media_time`；`gray.reason = no_roll_distance`（闭集内） | 有 roll 声明（可判）；无裁剪 | `C6b` |
+| `no_edts_but_nonzero_start` (gray) | 首帧后移且**有** roll 声明，但**无** edit —— 无法判断后移是"裁剪"还是"缺陷" | 偏移 = 首条 `ctts` 的 `sample_offset`；`gray.reason = no_edts` | 无 roll 声明（→ `priming_undeclared` fail）；无后移 | **无夹具**（单测覆盖：`internal/rules/offset/offset_test.go` `TestNoEdtsButNonzeroStartIsGray`） |
+| `unknown_codec_priming` (gray) | 音频编码不在已知集（`mp4a` / `Opus`）—— 期望值不可判 | 偏移 = `stsd` 样本条目编码 fourcc；`gray.reason = unknown_codec_priming` | 编码在已知集内 | `P1`（`ac-3`） |
+
+**同一根因合并**（`F16`）：`priming_undeclared` 与 `start_trim` 互斥；一处裁剪只报一条。
+
+**判定顺序**（可判性优先）：编码未知 → gray；无裁剪 edit → 有 roll 落 `no_edts`、无 roll 报 `priming_undeclared`；
+有裁剪 edit → 无 roll 落 `no_roll_distance`、有 roll 则按"裁剪 vs 期望"分三支。
+
+**为什么裁剪 > 期望是 `start_trim`、裁剪 < 期望是 `priming_mismatch`**：前者把该播的正片剪掉了
+（起始裁剪过量），后者是两处声明对不上（少裁）。**M4P4 与 C6c 的字节差别就在这一点**：`M4P4`
+裁剪(2048) > roll(1024) 是过量裁剪；`C6c` roll(1152) > 裁剪(1024) 是少裁。二者必须有不同字节，
+故 `C6c` 的 `roll` 取 1152（旧真值里的 704 与 `M4P4` 同属"裁剪 > roll"一档，无法区分，已在 M5 修正）。
+
+**对照组误报 0**：M4 的误报门覆盖**所有非 M4 目标样本**（`controls` 16 + `m3-regression` 24 +
+`m4` 反例 5 + `m5` 10 + 其他模块专属缺陷，共 83 例）在模块 M4 下 **0 finding**，由
+`cmd/mediatrace` 的 `TestM4MatchesFixtureTruth` 集合相等断言；`--modules M4` 的结论与合集/默认全集中的
+M4 那一半一致（`TestM4SubsetConclusionIsStable`，G9）。
 
 ---
 
 ## M5 · 显示与色彩
 
-| RuleID | 判什么 | 反例（不算违规） |
-|---|---|---|
-| `matrix_not_orthogonal` | 行列式/点积超容差（整数） | 正常 0°/90°/180° 矩阵 |
-| `rotation_dimension_conflict` | ±90° 且 `width<height` 且无 `pasp` | 正常竖屏（有合理 `pasp`） |
-| `sar_dar_conflict` | `pasp` 与 DAR 不一致 | 无 `pasp`（默认方形像素） |
-| `hdr_metadata_missing` | 广色域无 `mdcv/clli`（gray） | 有完整 HDR 元数据 |
-| `hdr_range_suspect` | `max<=min` 或 `clli`/`mdcv` 矛盾 | — |
-| `colr_multi_instance` | 多 `colr` | 单 `colr` |
+实现：`internal/rules/display/`（模块号 `M5`；`rules.go` 里 `m5` 转调它）。
+判定对象是 `tkhd` 的 3×3 显示矩阵（**16.16 定点整数**）、呈现宽高、`pasp`、`colr`/`mdcv`/`clli`
+之间是否互相自洽。**不做**绝对亮度 / 绝对色彩正确性判定（只读元数据无法确证）。
 
-**不做**：绝对亮度/绝对色彩是否正确（只读元数据无法确证）。
+| RuleID | 判什么 | 证据（四元组要点） | 反例（不算违规） | 反例/正例样本 id |
+|---|---|---|---|---|
+| `matrix_not_orthogonal` | 左上 2×2 的行/列点积与 1.0 的偏差超 `policy.MatrixOrthoTolerance`（**整数运算**，`policy.Square`） | 偏移 = `tkhd.matrix`；`values` 含两行点积、行间点积、期望单位点积、容差；`delta` = 最大偏差（1/65536 单位） | 单位阵 / 0°·90°·180° 正交旋转 | `D1`/`M5P3`（剪切矩阵）；反例 `K12-matrix-ortho`/`M5N3` |
+| `rotation_dimension_conflict` | matrix 为 ±90° 且 `tkhd.width < height` 且**无** `pasp` | 偏移 = `tkhd.matrix`；`values` 含旋转角 + 呈现宽高；`delta` = 高 − 宽 | 呈现宽 > 高（正常竖屏）；有 `pasp`；旋转 0°/180° | `C7`/`M5P1`（+90°）、`C7b`/`M5P2`（−90°）；反例 `K7-portrait`/`M5N1`（rot90 + 宽>高 + pasp）、`K8-rot180`/`M5N2` |
+| `sar_dar_conflict` | `pasp` 推出的 DAR 与 `tkhd` 声明的宽高比不一致（±90° 时取倒数） | 偏移 = `pasp`；`values` 含 pasp 分子/分母 + 存储宽高 + 呈现宽高；`delta` = 宽度差（px） | 无 `pasp`（默认方形像素）；`pasp` 与声明一致 | `M5P5`（pasp 8:9 与 tkhd 4:3 矛盾）；反例 `M5N5`（pasp 1:1）、`K7-portrait`（rot90 + pasp 1:1） |
+| `colr_multi_instance` | 样本条目含 **≥2** 个 `colr` | 偏移 = 首个 `colr`；`values` **按文件内顺序全列**每个 `colr` 的 primaries（D10，不取第一个）；`delta` = 实例数 − 1 | 单个 `colr` | `D2`/`M5P4`（bt709 → bt2020）；反例 `K11-colr-hdr`/`M5N4` |
+| `hdr_metadata_missing` (gray) | 广色域 `colr`（bt2020 primaries=9 / Display-P3=12）但**无** `mdcv`/`clli` | 偏移 = 该 `colr`；`gray.reason = hdr_metadata_missing` | 有完整 HDR 元数据；非广色域 | **无夹具**（单测覆盖：`internal/rules/display/display_test.go` `TestHDRMetadataMissingIsGray`） |
+| `hdr_range_suspect` | `mdcv` 量程 `max<=min`，或 `clli`/`mdcv` 互相矛盾（`max_content_light_level` ≠ `mdcv.max_luminance`；`avg > max`）——**只判量程与互斥，不判绝对亮度** | 偏移 = `mdcv`/`clli` 字段；`values` 含量程原值；`delta` = 越界量 | 量程合法且两处元数据一致 | **无夹具**（单测覆盖：`TestHDRRangeSuspect`、`TestHDRCompleteIsClean`） |
+
+**matrix 读数口径**（`F5`/`K15`）：`tkhd` 是叶子盒，`matrix` 按 16.16 定点**整数**读（v0 偏移 40、v1 偏移 44）；
+正交性 = 2×2 的行/列点积；容差换算到点积原单位（`tol × 65536`），**全程整数，不做浮点近似**。
+
+**`colr`/`pasp`/`mdcv`/`clli` 的层级**（`F13`）：`stsd` 不是容器盒，样本条目与其子盒在 IR 里不存在，
+本包按字节自读样本条目固定头（视觉 78B / 音频 28B）后的子盒序列。**多 `colr` 按序全列，不取第一个**（D10）。
+
+**对照组误报 0**：M5 的误报门覆盖**所有非 M5 目标样本**（同上 83 例）在模块 M5 下 **0 finding**，
+由 `TestM5MatchesFixtureTruth` 集合相等断言；G9 由 `TestM5SubsetConclusionIsStable` 守。
 
 ---
 

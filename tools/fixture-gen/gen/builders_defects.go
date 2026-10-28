@@ -127,13 +127,15 @@ var defectBuilders = []Builder{
 	{
 		ID: "C6b", Suite: "defects", Filename: "c6b_no_roll_distance.mp4",
 		ExpectStatus: ExpectGray, Expected: []string{"no_roll_distance"}, GrayReason: "no_roll_distance",
-		Note: "AAC 轨：PTS 起点为 0、无 edts、无 sgpd/sbgp → priming 期望值不可判，落 gray（不得猜 fail）",
+		Note: "AAC 轨：编辑表裁剪 1024、但无 sgpd/sbgp roll → priming 期望值不可推，落 gray（不得猜 fail）；" +
+			"与 M4N5（无裁剪、起点 0、无 roll 的合法形态）字节不同",
 		Build: buildC6bNoRoll,
 	},
 	{
 		ID: "C6c", Suite: "defects", Filename: "c6c_priming_mismatch.mp4",
 		ExpectStatus: ExpectFail, Expected: []string{"priming_mismatch"},
-		Note: "已用 elst 裁剪 1024，但 roll 距离 = 704 ≠ 声明的 1024（系统内部约定：roll 正数 = priming 样本数）",
+		Note: "已用 elst 裁剪 1024，但 roll 距离 = 1152 ≠ 裁剪量（声明 > 裁剪 = 少裁）——" +
+			"roll > 裁剪 才叫\"声明不一致\"；裁剪 > roll 属起始裁剪过量（start_trim）",
 		Build: buildC6cPrimingMismatch,
 	},
 
@@ -419,29 +421,33 @@ func buildC6Priming1024(seed uint64) ([]byte, uint64, error) {
 		mvhdTimescale: 1000, durationAuto: true,
 		tracks: []*track{at},
 	})
-	return raw, mk["trak0_stbl_ctts_entry0"], nil
+	return raw, mk["trak0_stbl_ctts_entry0_offset"], nil
 }
 
 func buildC6bNoRoll(seed uint64) ([]byte, uint64, error) {
+	// 编辑表声明裁剪 1024，但容器**不**给 roll 距离 → 无法交叉核对 ⇒ gray `no_roll_distance`。
+	// （M4N5 是"无裁剪、起点 0、无 roll"的合法形态，二者必须有不同字节，故此处带裁剪。）
 	at := audioTrack(48000, 48*1024, 1024)
 	at.roll = nil // 无 roll 距离 → 期望值不可推
+	at.elst = []elstEntry{{SegmentDuration: 1024, MediaTime: 1024}}
 	raw, mk := buildMovie(movie{
-		mvhdTimescale: 1000, durationAuto: true,
-		tracks: []*track{at},
+		mvhdTimescale: 1000, mvhdDuration: 1024, tracks: []*track{at},
 	})
-	return raw, mk["trak0_stbl_stts_entry0_duration"], nil
+	return raw, mk["trak0_elst0_media_time"], nil
 }
 
 func buildC6cPrimingMismatch(seed uint64) ([]byte, uint64, error) {
-	roll := int16(704) // ≠ 声明的 1024
+	// 容器声明 roll = 1152，但编辑表只裁剪 1024：两处声明对不上（roll > 裁剪 = 少裁）。
+	// roll > 裁剪 才是"声明不一致"；裁剪 > roll 属起始裁剪过量（start_trim，见 M4P4）。
+	roll := int16(1152) // ≠ 编辑表裁剪的 1024
 	at := audioTrack(48000, 48*1024, 1024)
 	at.roll = &roll
-	at.elst = []elstEntry{{SegmentDuration: 1024, MediaTime: 1024}} // 已正确裁剪 1024
+	at.elst = []elstEntry{{SegmentDuration: 1024, MediaTime: 1024}} // 已裁剪 1024
 	raw, mk := buildMovie(movie{
 		mvhdTimescale: 1000, mvhdDuration: 1024,
 		tracks: []*track{at},
 	})
-	return raw, mk["trak0_stbl_sgpd_roll"], nil
+	return raw, mk["trak0_elst0_media_time"], nil
 }
 
 // ── C7 ──────────────────────────────────────────────────────────────────

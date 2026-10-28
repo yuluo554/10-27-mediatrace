@@ -425,7 +425,7 @@ var m4Builders = []Builder{
 			at.ctts = []cttsEntry{{Count: 48, Offset: 2112}}
 			at.roll = nil
 			r, mk := buildMovie(movie{mvhdTimescale: 1000, durationAuto: true, tracks: []*track{at}})
-			return r, mk["trak0_stbl_ctts_entry0"], nil
+			return r, mk["trak0_stbl_ctts_entry0_offset"], nil
 		},
 	},
 	{
@@ -457,7 +457,7 @@ var m4Builders = []Builder{
 	{
 		ID: "M4P5", Suite: "m4", Filename: "m4p5_roll_mismatch_704.mp4",
 		ExpectStatus: ExpectFail, Expected: []string{"priming_mismatch"},
-		Note: "roll=704 vs 声明 1024（同 C6c，独立成组以凑 5 正例）", Build: buildC6cPrimingMismatch,
+		Note: "roll=1152 vs 编辑表裁剪 1024（同 C6c，独立成组以凑 5 正例）", Build: buildC6cPrimingMismatch,
 	},
 
 	// 反例（合法：正确裁剪，不得报）
@@ -513,12 +513,12 @@ var m5Builders = []Builder{
 		Expected: []string{"colr_multi_instance"}, Note: "两个 colr（bt709+bt2020）", Build: buildD2ColrMulti},
 	{ID: "M5P5", Suite: "m5", Filename: "m5p5_sar_dar_conflict.mp4", ExpectStatus: ExpectFail,
 		Expected: []string{"sar_dar_conflict"},
-		Note: "pasp 8:9 与 tkhd 声明宽高比（4:3）矛盾 → SAR/DAR 不一致",
+		Note: "存储 640×480 + pasp 8:9 → DAR 与 tkhd 声明宽高比（4:3）矛盾 → SAR/DAR 不一致",
 		Build: func(seed uint64) ([]byte, uint64, error) {
 			vt := videoTrack(90000, 90000, 30)
-			vt.w, vt.h = 640<<16, 480<<16 // 呈现 4:3
-			vt.stsdW, vt.stsdH = 720<<16, 480<<16
-			vt.paspNum, vt.paspDen = 8, 9 // 说明像素非方形且方向与声明不符
+			vt.w, vt.h = 640<<16, 480<<16 // 呈现 4:3（存储同尺寸，见下）
+			vt.stsdW, vt.stsdH = 640<<16, 480<<16
+			vt.paspNum, vt.paspDen = 8, 9 // 非方形像素：DAR = 640*8/(480*9) ≠ 4:3
 			r, mk := buildMovie(movie{mvhdTimescale: 1000, durationAuto: true, tracks: []*track{vt}})
 			return r, mk["trak0_stbl_stsd_pasp"], nil
 		},

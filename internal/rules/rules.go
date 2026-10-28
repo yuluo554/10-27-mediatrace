@@ -11,13 +11,15 @@ import (
 
 	"github.com/yuluo554/mediatrace/internal/isobmff"
 	"github.com/yuluo554/mediatrace/internal/report"
+	"github.com/yuluo554/mediatrace/internal/rules/display"
 	"github.com/yuluo554/mediatrace/internal/rules/duration"
+	"github.com/yuluo554/mediatrace/internal/rules/offset"
 	"github.com/yuluo554/mediatrace/internal/rules/structure"
 	"github.com/yuluo554/mediatrace/internal/rules/timestamps"
 )
 
-// ErrNotImplemented 表示该模块在骨架期尚未实现。
-// CLI 必须把它映射成退出码 3（用法/不可判通道），**不得**当 PASS 输出。
+// ErrNotImplemented 曾用于骨架期未实现的模块；五个模块现已全部实现，此错误保留为
+// 防御（新增模块忘接实现时，CLI 仍把它映射成退出码 3，**不得**当 PASS 输出）。
 var ErrNotImplemented = errors.New("rules: module not implemented")
 
 // Input 是规则层的输入（只读）。
@@ -76,11 +78,11 @@ func ByIDs(ids []string) ([]Module, error) {
 }
 
 // ── 模块实现 ─────────────────────────────────────────────────────────────
-// m1（结构自洽）转调 internal/rules/structure；m2（时长口径）转调
-// internal/rules/duration；m3（时间戳）转调 internal/rules/timestamps。
-// 模块间不互相 import（archtest 守）；三个实现包都只依赖 isobmff/report/policy，
+// m1（结构自洽）→ internal/rules/structure；m2（时长口径）→ internal/rules/duration；
+// m3（时间戳）→ internal/rules/timestamps；m4（偏移/priming）→ internal/rules/offset；
+// m5（显示与色彩）→ internal/rules/display。
+// 模块间不互相 import（archtest 守）；五个实现包都只依赖 isobmff/report/policy，
 // 故此处单向依赖无环。
-// m4/m5 仍是桩：Audit 返回 ErrNotImplemented，**不得**改成"返回空 findings"冒充 PASS。
 
 type m1 struct{}
 
@@ -108,10 +110,16 @@ func (m3) Audit(in Input) ([]report.Finding, error) {
 
 type m4 struct{}
 
-func (m4) ID() string                            { return "M4" }
-func (m4) Audit(Input) ([]report.Finding, error) { return nil, ErrNotImplemented }
+func (m4) ID() string { return offset.ModuleID }
+
+func (m4) Audit(in Input) ([]report.Finding, error) {
+	return offset.Audit(in.Root, in.Raw, in.FileName)
+}
 
 type m5 struct{}
 
-func (m5) ID() string                            { return "M5" }
-func (m5) Audit(Input) ([]report.Finding, error) { return nil, ErrNotImplemented }
+func (m5) ID() string { return display.ModuleID }
+
+func (m5) Audit(in Input) ([]report.Finding, error) {
+	return display.Audit(in.Root, in.Raw, in.FileName)
+}

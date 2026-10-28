@@ -80,11 +80,12 @@ func TestAuditUnknownModuleIsUsageError(t *testing.T) {
 	}
 }
 
-// 骨架期：模块未实现 → 退出码 3，绝不冒充 PASS。
-func TestSkeletonModuleIsNotImplemented(t *testing.T) {
+// 五个模块全部实现后，默认全集对"只有 ftyp"的最小样本应给出真实结论 pass(0)，
+// 不再有"未实现 → 退出码 3"的骨架期通道。
+func TestDefaultAuditRunsAllModules(t *testing.T) {
 	p := mkFile(t, boxBytes("ftyp", []byte("isom")))
-	if code := runCaptured(t, "audit", p); code != policy.ExitUsage {
-		t.Fatalf("skeleton audit exit=%d, want %d (must not fake PASS)", code, policy.ExitUsage)
+	if code := runCaptured(t, "audit", p); code != policy.ExitPass {
+		t.Fatalf("audit exit=%d, want %d (all modules implemented; minimal ftyp-only file is clean)", code, policy.ExitPass)
 	}
 }
 
@@ -109,18 +110,17 @@ func TestAuditDoesNotModifyInput(t *testing.T) {
 // 文档写的形态必须能被 parser 接受：`audit <file> --json` 与 `audit --json <file>`。
 // 这是发布包实测里最贵的一族（skill：「文档化的参数形态 parser 认不认」）。
 //
-// M2 起模块 M1 已实现：`--modules M1` 对合法样本给出真实结论（pass → 0），
-// 而**默认全集**仍因 M2–M5 未实现而落 3。两条路径分别断言，正是为了区分
-// "参数形态没被认出来"（也会是 3）与"模块未实现的 3"。
+// 五个模块全部实现后，默认全集对最小合法样本给出 pass(0)；只跑单模块同样是 pass(0)。
+// 两条路径都断言，正是为了区分"参数形态没被认出来"（会是 3）与"真实结论"（0）。
 func TestFlagOrderDoesNotMatter(t *testing.T) {
 	p := mkFile(t, boxBytes("ftyp", []byte("isom")))
 	cases := []struct {
 		args []string
 		want int
 	}{
-		// 全集：M1 已实现并判 pass，但 M2–M5 是桩 → 3（未实现，不冒充 PASS）
-		{[]string{"audit", p, "--json"}, policy.ExitUsage},
-		{[]string{"audit", "--json", p}, policy.ExitUsage},
+		// 默认全集：五模块全实现，只有 ftyp 的最小样本结构/时长/时间戳/偏移/显示均无异常 → pass(0)
+		{[]string{"audit", p, "--json"}, policy.ExitPass},
+		{[]string{"audit", "--json", p}, policy.ExitPass},
 		// 只跑 M1：合法的"只有 ftyp"文件结构无异常 → pass(0)
 		{[]string{"audit", p, "--modules", "M1"}, policy.ExitPass},
 		{[]string{"audit", "--modules", "M1", p}, policy.ExitPass},

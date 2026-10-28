@@ -434,6 +434,8 @@ stsd := stsdBox(entry)
 	if len(t.ctts) > 0 {
 		parts = append(parts, cttsBox(t.ctts, t.cttsV1))
 		mk.set("ctts_entry0", 8+uint64(len(stsd))+uint64(len(stts))+8+4+4)
+		// 首条 ctts 的 sample_offset 字段（条目内 +4）：priming_undeclared 的证据落点
+		mk.set("ctts_entry0_offset", 8+uint64(len(stsd))+uint64(len(stts))+8+4+4+4)
 	}
 	parts = append(parts, stscBox(1, sampleCount), stszBox(sampleSize, sampleCount))
 

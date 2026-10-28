@@ -23,11 +23,10 @@
 | **M2** | 结构判定（模块 M1） | ✅ 已完成 |
 | **M3** | 时长口径判定（模块 M2） | ✅ 已完成 |
 | **M4** | 时间戳判定（模块 M3） | ✅ 已完成 |
-| **M5** | 偏移与显示判定（模块 M4+M5）+ 报告 | ⬜ 未开工 |
+| **M5** | 偏移与显示判定（模块 M4+M5）+ 报告 | ✅ 已完成 |
 | **M6** | 发布（tag + Release + 留档） | ⬜ 未开工 |
 
-> **当前进度**：**M1 数据先行 + M2 结构判定 + M3 时长口径判定 + M4 时间戳判定已收尾**。模块
-> **M1（结构自洽）**、**M2（时长口径）** 与 **M3（时间戳）** 已实现：
+> **当前进度**：**M1–M5 已收尾，五个模块全部实现**：
 > - `mediatrace audit <file> --modules M1` → `duplicate_moov` / `stco_out_of_mdat` /
 >   `truncated_mdat` / `child_overruns_parent` / `duplicate_mdat` / `max_depth_exceeded` 等八条规则；
 > - `mediatrace audit <file> --modules M2` → `duration_mismatch`（三口径互比，1 tick 容差）/
@@ -35,10 +34,17 @@
 >   `first_pts_outside_media` / `duration_unknown`（gray）；
 > - `mediatrace audit <file> --modules M3` → `tfdt_regression`（跨分片回退）/ `zero_duration_entry` /
 >   `dts_overflow_risk`（位宽越界）/ `dts_regression`（DTS 0 容差单调）/ `timescale_suspect`（gray）/
->   `vfr_detected`（gray）——**只看 DTS，B 帧的 PTS 乱序不误伤**。
+>   `vfr_detected`（gray）——**只看 DTS，B 帧的 PTS 乱序不误伤**；
+> - `mediatrace audit <file> --modules M4` → `priming_undeclared`（报后移样本数）/ `start_trim`
+>   （报秒值 + 样本数）/ `priming_mismatch`（裁剪 vs 声明）/ `no_roll_distance`（gray）/
+>   `no_edts_but_nonzero_start`（gray）/ `unknown_codec_priming`（gray）——**期望 priming = 声明值，不硬编码 1024**；
+> - `mediatrace audit <file> --modules M5` → `matrix_not_orthogonal`（16.16 整数正交性）/
+>   `rotation_dimension_conflict`（±90° 宽高未互换）/ `sar_dar_conflict` / `colr_multi_instance`
+>   （按序全列）/ `hdr_metadata_missing`（gray）/ `hdr_range_suspect`。
 >
-> 每条 `fail` 带四元组证据；对 92 例合成夹具**召回精确、对照组 60 例误报 0**（M1、M2、M3 各自核对）。
-> 模块 M4–M5（偏移/显示）尚未实现（`--modules` 对它们明确返回退出码 3，**不冒充 PASS**）。
+> 每条 `fail` 带四元组证据；对 92 例合成夹具**召回精确、对照组误报 0**（M1–M5 各自核对：
+> 每个模块的误报门覆盖其余 83 例）。默认全集（`--modules` 缺省 = M1–M5）给出真实结论，不再有"未实现"通道。
+> 首期**不做** `--suite` 批跑（首屏 `GATE` 段不出现，见 `docs/report-schema.md §二`）。
 > 计划与口径见 `plan/`，续接入口是 `plan/00-README总览.md`。
 
 ## 快速开始
@@ -53,14 +59,19 @@ node tools/tasks.mjs check-fixtures # 双跑逐字节比对
 node tools/tasks.mjs all            # 以上一键跑
 
 bin/mediatrace --version
-# 结构判定（模块 M1 已实现）：
+# 结构判定（模块 M1）：
 bin/mediatrace audit fixtures/out/c2_stco_out_of_mdat.mp4 --modules M1
-# 时间戳判定（模块 M3 已实现）：跨分片 tfdt 回退 / stts 零时长 / 位宽越界 / 极小时基
+# 时间戳判定（模块 M3）：跨分片 tfdt 回退 / stts 零时长 / 位宽越界 / 极小时基
 bin/mediatrace audit fixtures/out/c5b_tfdt_regression.mp4 --json --modules M3
+# 偏移 / priming（模块 M4）：未声明 priming 报出 1024
+bin/mediatrace audit fixtures/out/c6_priming_undeclared_1024.mp4 --json --modules M4
+# 显示与色彩（模块 M5）：±90° 旋转但呈现宽高未互换
+bin/mediatrace audit fixtures/out/c7_rot90_dim_conflict.mp4 --json --modules M5
 ```
 
 > Go 不在 `PATH` 时：`GO=/path/to/go node tools/tasks.mjs test`。
-> Windows 产物名是 `bin/mediatrace.exe`。
+> Windows 产物名是 `bin/mediatrace.exe`。首期**不做** `--suite` 批跑，单文件审计首屏只有
+> `VERDICT` + `FIRST` 两段（`GATE` 段不出现，见 `docs/report-schema.md §二`）。
 
 ## 退出码
 

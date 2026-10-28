@@ -149,19 +149,35 @@
 
 ## 六、DoD 逐项 checklist（M5，取自 `plan/00 §五` 与 `plan/05 §二`）
 
-- [ ] `internal/rules/offset/` 建成，模块 M4 六条 RuleID 全实现；`--modules M4` 走通
-- [ ] `internal/rules/display/` 建成，模块 M5 六条 RuleID 全实现；`--modules M5` 走通
-- [ ] `C6`/`M4P1` 报出 **1024**；`M4P2` 报 2112；`M4P3`/`M4P5`/`C6c` 报 roll 声明 vs 期望
-- [ ] `M4P4` 落 `start_trim`（报秒值 + 样本数）；`C7`/`C7b`/`M5P1`/`M5P2` 落 `rotation_dimension_conflict`
-- [ ] `D1` 落 `matrix_not_orthogonal`（**整数**运算）；`D2`/`M5P4` 落 `colr_multi_instance`（按序全列）；`M5P5` 落 `sar_dar_conflict`
-- [ ] `P1` 落 `unknown_codec_priming` gray；F15 各"无夹具"分支有**包级单测**或**补夹具**，并在 `docs/rules.md` 如实写明
-- [ ] **`m4`/`m5` 正反例各 5 + `controls`/`m3-regression`**：四组 60 例在 M4、M5 两模块下**误报 0**（集合相等断言）
-- [ ] 每条 `fail` 带四元组（偏移 + 字段路径 + 值 + 差值）；`gray` 可导出且不计 fail
-- [ ] `--modules M4`/`M5` 单独跑通且结论 == 合集切片（G9）
-- [ ] **`main_test.go` 默认全集断言已改**（F2）——否则 `test` 红
-- [ ] `docs/rules.md` M4 节 + M5 节写完；`docs/report-schema.md` 去草稿标注；`GATE`/`--suite` 有定夺（F21）
-- [ ] 三处状态副本 + `plan/00 §三` 台账行（9 行）同提交翻 ✅ + `plan/HANDOFF-M6.md` 已写
-- [ ] `node tools/tasks.mjs all` 全绿（含 smoke / cross 前的本地全套）
+- [x] `internal/rules/offset/` 建成，模块 M4 六条 RuleID 全实现；`--modules M4` 走通
+- [x] `internal/rules/display/` 建成，模块 M5 六条 RuleID 全实现；`--modules M5` 走通
+- [x] `C6`/`M4P1` 报出 **1024**；`M4P2` 报 2112；`M4P3`/`M4P5`/`C6c` 报 roll 声明 vs 期望
+- [x] `M4P4` 落 `start_trim`（报秒值 + 样本数）；`C7`/`C7b`/`M5P1`/`M5P2` 落 `rotation_dimension_conflict`
+- [x] `D1` 落 `matrix_not_orthogonal`（**整数**运算）；`D2`/`M5P4` 落 `colr_multi_instance`（按序全列）；`M5P5` 落 `sar_dar_conflict`
+- [x] `P1` 落 `unknown_codec_priming` gray；F15 各"无夹具"分支有**包级单测**，并在 `docs/rules.md` 如实写明
+- [x] **`m4`/`m5` 正反例各 5 + `controls`/`m3-regression`**：误报门**每模块 83 例**（覆盖四组 60 例下限）**误报 0**（集合相等断言）
+- [x] 每条 `fail` 带四元组（偏移 + 字段路径 + 值 + 差值）；`gray` 可导出且不计 fail
+- [x] `--modules M4`/`M5` 单独跑通且结论 == 合集切片 == 默认全集（G9）
+- [x] **`main_test.go` 默认全集断言已改**（F2）：`TestDefaultAuditRunsAllModules` + `TestFlagOrderDoesNotMatter` 期望 pass(0)
+- [x] `docs/rules.md` M4 节 + M5 节写完；`docs/report-schema.md` 去草稿标注；`GATE`/`--suite` 已定夺（首期不做）
+- [x] 三处状态副本 + `plan/00 §三` 台账行（9 行）同提交翻 ✅ + `plan/HANDOFF-M6.md` 已写
+- [x] `node tools/tasks.mjs all` 全绿（含 smoke / cross 前的本地全套）
+
+### DoD 结果（M5 收尾实测，2026-10-28）
+
+- **模块 M4**：`internal/rules/offset/`（六条 RuleID）。判定顺序 = 可判性优先：编码未知 → gray；
+  无裁剪 edit → 有 roll 落 `no_edts`·无 roll 报 `priming_undeclared`；有裁剪 edit → 无 roll 落
+  `no_roll_distance`·有 roll 按"裁剪 vs 期望"分 `start_trim`（裁剪 > roll）/ `priming_mismatch`（裁剪 < roll）/ 合法。
+  `C6`→1024 sample、`M4P2`→2112、`M4P4`→start_trim（2048 sample / 42 ms）、`C6c`→priming_mismatch（roll 1152 vs 裁剪 1024）。
+- **模块 M5**：`internal/rules/display/`（六条 RuleID）。matrix 16.16 整数正交（`policy.Square` + `MatrixOrthoTolerance`）；
+  ±90° 宽高未互换（`C7`/`C7b`）；旋转感知的 SAR/DAR（`M5P5`）；`colr` 多实例按序全列（`D2`/`M5P4` 报 primaries=1,9）。
+- **包级单测覆盖无夹具分支**：`offset` 的 `no_edts_but_nonzero_start`（gray），`display` 的
+  `hdr_metadata_missing`（gray）与 `hdr_range_suspect`（fail）。
+- **夹具真值修正**（改生成器 + 重生成 manifest，见 `plan/HANDOFF-M6.md §三`）：`C6b` 加裁剪以区别于 `M4N5`；
+  `C6c`/`M4P5` roll 704→1152 以与 `M4P4` 的过量裁剪区分；`M5P5` 存储宽高 720×480→640×480 使 SAR/DAR 真正矛盾。
+- **报告收口**：`VerdictLine`/`FirstLine` 已在；**定夺首期不做 `--suite` 批跑，`GATE` 段不出现**（同步 `docs/report-schema.md`、`README`、`plan/05`）。
+- **全套**：`node tools/tasks.mjs all` 全绿；`verify-gates` 21 组逐组按预期变红，`git diff --stat` 无残留。
+
 
 ---
 
