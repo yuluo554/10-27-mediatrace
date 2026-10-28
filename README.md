@@ -73,6 +73,31 @@ bin/mediatrace audit fixtures/out/c7_rot90_dim_conflict.mp4 --json --modules M5
 > Windows 产物名是 `bin/mediatrace.exe`。首期**不做** `--suite` 批跑，单文件审计首屏只有
 > `VERDICT` + `FIRST` 两段（`GATE` 段不出现，见 `docs/report-schema.md §二`）。
 
+## 下载即用
+
+Release 页附三个平台的**单二进制**（免安装、零运行时依赖）与 `SHA256SUMS`：
+
+| 平台 | 附件名 |
+| --- | --- |
+| Linux x86-64 | `mediatrace-linux-amd64` |
+| macOS Apple Silicon | `mediatrace-darwin-arm64` |
+| Windows x86-64 | `mediatrace-windows-amd64.exe` |
+
+```bash
+# 下载后先验完整性（同一目录下同时下载 SHA256SUMS）
+sha256sum -c SHA256SUMS            # macOS: shasum -a 256 -c SHA256SUMS
+# Windows（PowerShell）：
+#   certutil -hashfile mediatrace-windows-amd64.exe SHA256
+#   （与 SHA256SUMS 里对应行比对）
+
+chmod +x mediatrace-linux-amd64
+./mediatrace-linux-amd64 --version   # → mediatrace 0.1.0
+./mediatrace-linux-amd64 audit your.mp4
+```
+
+> **附件与 tag 树同源**：三个二进制由 tag 树用 `go build -trimpath` 直接产出（无打包步骤），
+> 同参数重复构建逐字节相同。校验与留档见 `plan/RELEASE-M6.md`。
+
 ## 退出码
 
 | 码 | 语义 |
