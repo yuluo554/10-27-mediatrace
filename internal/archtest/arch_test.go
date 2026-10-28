@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/yuluo554/10-27-mediatrace/internal/policy"
 )
 
 // repoRoot 从测试文件所在目录向上两级（internal/archtest → repo root）。
@@ -151,6 +153,35 @@ func TestR3PolicyConstantsHaveSingleSource(t *testing.T) {
 		if hits == 0 {
 			t.Errorf("%s defined 0 times — policy constant missing", name)
 		}
+	}
+}
+
+// 版本号两处定义必须一致：`internal/policy.Version`（源码内可见的默认值）与
+// `tools/tasks.mjs` 的 VERSION（构建时由 -ldflags 注入、覆盖前者）。
+//
+// 为什么这条要机器断言而不是靠人看：发布二进制用 `--version` 自证 tag，而注入值来自
+// tasks.mjs；两处漂移时 `--version` 会打印一个与 tag 不同的号，且**本地全绿**——
+// 只有拿到产物的人才会发现（阶段 7 出口门「版本号一致要由机器断言，别靠手抄」）。
+// 本判据只断言"一致"：开发期带 `-dev` 后缀合法，收干由发布流程管。
+func TestVersionSingleSourceMatchesBuildScript(t *testing.T) {
+	root := repoRoot(t)
+	raw, err := os.ReadFile(filepath.Join(root, "tools", "tasks.mjs"))
+	if err != nil {
+		t.Fatalf("read tools/tasks.mjs: %v", err)
+	}
+	const marker = `const VERSION = "`
+	src := string(raw)
+	idx := strings.Index(src, marker)
+	if idx < 0 {
+		t.Fatalf("tools/tasks.mjs 里找不到 %q —— 版本注入点被搬走或改写", marker)
+	}
+	rest := src[idx+len(marker):]
+	end := strings.Index(rest, `"`)
+	if end < 0 {
+		t.Fatal("tools/tasks.mjs 的 VERSION 字面量没有收尾引号")
+	}
+	if got := rest[:end]; policy.Version != got {
+		t.Errorf("版本不一致：internal/policy.Version=%q，tools/tasks.mjs VERSION=%q——发布物 --version 会与 tag 对不上", policy.Version, got)
 	}
 }
 
