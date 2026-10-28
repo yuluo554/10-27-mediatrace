@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/yuluo554/10-27-mediatrace/internal/policy"
@@ -77,6 +78,49 @@ func TestAuditUnknownModuleIsUsageError(t *testing.T) {
 	p := mkFile(t, boxBytes("ftyp", []byte("isom")))
 	if code := runCaptured(t, "audit", p, "--modules", "M9"); code != policy.ExitUsage {
 		t.Fatalf("unknown module exit=%d, want %d", code, policy.ExitUsage)
+	}
+}
+
+// 诊断 D1 的端到端回归：非媒体输入必须是退出码 3，且 stdout **不含** VERDICT。
+// 旧行为实测：`printf 'hello world…' > r.mp4` → VERDICT: FAIL + exit 1
+// （"看不懂"被判定成"文件有问题"）。
+func TestAuditNonMediaInputExitsThreeWithoutVerdict(t *testing.T) {
+	p := mkFile(t, []byte("hello world this is not a media file at all"))
+
+	var stdout, stderr strings.Builder
+	code := run([]string{"audit", p}, &stdout, &stderr)
+	if code != policy.ExitUsage {
+		t.Fatalf("plain-text input exit=%d, want %d (not a media file ≠ file is broken)", code, policy.ExitUsage)
+	}
+	if strings.Contains(stdout.String(), "VERDICT") {
+		t.Fatalf("stdout must not carry a verdict for non-media input, got:\n%s", stdout.String())
+	}
+	if !strings.Contains(stderr.String(), "not an ISO BMFF") {
+		t.Fatalf("stderr should say it is not ISO BMFF, got:\n%s", stderr.String())
+	}
+	// 隐私：措辞只用 basename，不得出现目录分隔符前的临时路径。
+	if strings.Contains(stderr.String(), filepath.Dir(p)) {
+		t.Fatalf("stderr leaked the absolute path:\n%s", stderr.String())
+	}
+}
+
+// 真 MKV 头（EBML magic）同样走退出码 3，不是 FAIL。
+func TestAuditMatroskaInputExitsThree(t *testing.T) {
+	p := mkFile(t, []byte{0x1a, 0x45, 0xdf, 0xa3, 0x00, 0x00, 0x00, 0x00})
+	var stdout, stderr strings.Builder
+	if code := run([]string{"audit", p}, &stdout, &stderr); code != policy.ExitUsage {
+		t.Fatalf("matroska input exit=%d, want %d", code, policy.ExitUsage)
+	}
+	if strings.Contains(stdout.String(), "VERDICT") {
+		t.Fatalf("stdout must not carry a verdict, got:\n%s", stdout.String())
+	}
+}
+
+// 空文件保持既有行为：退出码 3（ErrShortHeader 通道），与"不像 ISO BMFF"分开。
+func TestAuditEmptyFileStaysUsageError(t *testing.T) {
+	p := mkFile(t, []byte{})
+	if code := runCaptured(t, "audit", p); code != policy.ExitUsage {
+		t.Fatalf("empty file exit=%d, want %d", code, policy.ExitUsage)
 	}
 }
 

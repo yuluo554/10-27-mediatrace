@@ -23,7 +23,9 @@ import { fileURLToPath } from "node:url";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SELF = new Set(["tools/check-desensitized.mjs", "tools/check_desensitized.py"]);
 
-const SKIP_DIRS = new Set([".git", ".tmp", "dist", "node_modules", ".cache", ".venv", "build", "bin", "fixtures", ".mimosa"]);
+// "update" = 迭代交接物（诊断/路线/执行/发布记录），内容是**本机实测命令原文**，
+// 按定义包含盘符路径与回环地址；它与 .gitignore 的 `update/` 成对出现（缺一即不一致）。
+const SKIP_DIRS = new Set([".git", ".tmp", "dist", "node_modules", ".cache", ".venv", "build", "bin", "fixtures", ".mimosa", "update"]);
 const SKIP_SUFFIXES = [".egg-info", ".dist-info"];
 const SKIP_EXTS = new Set([".png", ".jpg", ".jpeg", ".gif", ".ico", ".zip", ".gz", ".exe", ".dll", ".pdf", ".woff", ".woff2"]);
 

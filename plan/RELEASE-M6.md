@@ -29,7 +29,7 @@
 | 全量测试 | `node tools/tasks.mjs all` → 全绿；`go vet` 干净；`go test ./...` **99 项 PASS / 0 FAIL**（13 个包） |
 | 夹具对账 | `-check` → `92 例与入库 manifest 逐字节一致`（defects 32 / controls 16 / m3-regression 24 / m4 10 / m5 10，seed=20261027） |
 | 跨平台编译 | `node tools/tasks.mjs cross` → linux/amd64 + darwin/arm64 + windows/amd64 **三产物全绿** |
-| 构建可复现 | 同参数连编两次 `cmp` **逐字节相同**；二进制内嵌 `vcs.revision` + `vcs.modified=false`（`go version -m` 可核） |
+| 构建可复现 | 同参数连编两次 `cmp` **逐字节相同**；二进制内嵌 `vcs.revision` + `vcs.modified=false`（`go version -m` 可核）。**边界两条**：①仅在**同一 Go 工具链版本**内成立（发布物由 go1.24.5 构建）；②**必须在真 clone 里构建**——`git archive` 导出树无 `.git`，`vcs.*` 退化为 `(devel)`，产物尺寸相同但 sha256 不同（2026-10-28 实测） |
 | 冒烟（退出码） | `unknown command` → 3；`missing file` → 3；`k1_single_moov` 默认全集 → 0；C2/C5b/C6/C7 单模块 → 各 1 |
 | 交付面清单 | `cmd/`、`internal/`、`tools/`、`data/`、`docs/`、`plan/`、`fixtures/out/manifest.json`、`.github/workflows/ci.yml`、`README.md`、`AGENTS.md`、`LICENSE`、`Makefile`、`go.mod` |
 | 附件形态 | **构建产物本身**（单二进制 ×3 平台 + `SHA256SUMS`）；**不发源码包**——源码由 GitHub 的 tag 树提供 |

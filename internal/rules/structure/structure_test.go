@@ -67,17 +67,21 @@ func rulesOf(fs []report.Finding) map[string]int {
 
 // ── too_small_size（无夹具覆盖 → 本地构造）───────────────────────────────
 
+// 构造形态：首盒必须是合法顶层盒（此处 `ftyp`），畸形盒放在其后。
+// 契约变化（首盒嗅探 → 非 ISO BMFF 一律退出码 3，见 isobmff.Parse 的 ErrNotISOBMFF）
+// 使"整个文件就是一个 size=4 的盒子"按定义不再属于判定通道；
+// 本条要验的是"已识别为盒子树之后 size<8 转 finding 而不是 error"，断言内容未改。
 func TestTooSmallSizeIsFindingNotParseError(t *testing.T) {
-	buf := make([]byte, 8)
-	binary.BigEndian.PutUint32(buf[0:4], 4) // < 8
-	copy(buf[4:8], "free")
+	buf := append(bx("ftyp", nil), make([]byte, 8)...)
+	binary.BigEndian.PutUint32(buf[8:12], 4) // < 8
+	copy(buf[12:16], "free")
 
 	fs := auditBytes(t, buf)
 	if len(fs) != 1 || fs[0].RuleID != "too_small_size" {
 		t.Fatalf("findings = %+v, want one too_small_size", fs)
 	}
 	f := fs[0]
-	if f.Status != report.Fail || f.ByteOffset != 0 || f.FieldPath == "" {
+	if f.Status != report.Fail || f.ByteOffset != 8 || f.FieldPath == "" {
 		t.Fatalf("bad evidence: %+v", f)
 	}
 	if f.Delta == nil || f.Delta.Value != 4 || f.Delta.Unit != "byte" {

@@ -4,11 +4,14 @@
 package archtest
 
 import (
+	"encoding/json"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -209,5 +212,134 @@ func TestModulesDoNotImportEachOther(t *testing.T) {
 	})
 	if checked == 0 {
 		t.Fatal("rules package scanned 0 files")
+	}
+}
+
+// ── 自述数字守门（诊断 D5）──────────────────────────────────────────────
+//
+// 为什么要有这两条：README / docs 里的「92 例」「32 条规则」当前全对，但**没有任何门守着**。
+// 覆盖关系是当时手工 grep 出来的，下一棒加一条规则或加一个夹具，数字就悄悄漂了，
+// 而所有既有测试仍然全绿（它们都不读文档）。判据必须机器化，且**不许写常量白名单**：
+// 两个数每次都从代码与 manifest 现取，所以"改常量让它变绿"这条路不存在。
+//
+// 两条都带阴性对照：抽到 0 条规则 / README 里一处「N 例」都没有 → 直接 FAIL。
+// 否则"扫描没找到东西"会被输出成"全部一致"。
+
+// TestRulesDocCoversAllRuleIDs：每个模块声明的 RuleIDs 必须逐条出现在 docs/rules.md。
+//
+// 抽取方式是 AST 读 `var RuleIDs = []string{...}`（不是正则扫源码），这样：
+//   - 注释里的同名文字不会被误当规则；
+//   - `_test.go` 里的对账表不参与（真值只在实现包里声明）。
+//
+// 阴性对照：抽到 0 条 → FAIL（否则 docs 里什么都不写也能过）。
+func TestRulesDocCoversAllRuleIDs(t *testing.T) {
+	root := repoRoot(t)
+	docRaw, err := os.ReadFile(filepath.Join(root, "docs", "rules.md"))
+	if err != nil {
+		t.Fatalf("read docs/rules.md: %v", err)
+	}
+	doc := string(docRaw)
+
+	fset := token.NewFileSet()
+	ids := []string{}
+	decls := 0
+	walkGoFiles(t, filepath.Join(root, "internal", "rules"), func(path string) {
+		if strings.HasSuffix(path, "_test.go") {
+			return
+		}
+		f, err := parser.ParseFile(fset, path, nil, 0)
+		if err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		ast.Inspect(f, func(n ast.Node) bool {
+			gs, ok := n.(*ast.GenDecl)
+			if !ok || gs.Tok != token.VAR {
+				return true
+			}
+			for _, spec := range gs.Specs {
+				vs, ok := spec.(*ast.ValueSpec)
+				if !ok {
+					continue
+				}
+				for i, id := range vs.Names {
+					if id.Name != "RuleIDs" || i >= len(vs.Values) {
+						continue
+					}
+					lit, ok := vs.Values[i].(*ast.CompositeLit)
+					if !ok {
+						continue
+					}
+					decls++
+					for _, elt := range lit.Elts {
+						bl, ok := elt.(*ast.BasicLit)
+						if !ok || bl.Kind != token.STRING {
+							continue
+						}
+						val := strings.Trim(bl.Value, `"`)
+						ids = append(ids, val)
+					}
+				}
+			}
+			return true
+		})
+	})
+
+	if decls == 0 || len(ids) == 0 {
+		t.Fatalf("RuleIDs 抽到 0 条（声明块 %d 个）—— 判据是空的：抽取点被搬走或改名了", decls)
+	}
+	for _, id := range ids {
+		if !strings.Contains(doc, id) {
+			t.Errorf("docs/rules.md 缺规则 %q（实现里有、文档里没有）", id)
+		}
+	}
+	t.Logf("docs/rules.md 覆盖 %d 条 RuleID（来自 %d 个声明块）", len(ids), decls)
+}
+
+// TestFixtureCountDocumented：README 里每一处「N 例」都必须等于 manifest 的用例数。
+//
+// 数字来源是 `fixtures/out/manifest.json` 的 `len(cases)`（**不是** `ls fixtures/out | wc -l`：
+// 那里有 93 个文件 = 92 例 + manifest.json 自身，诊断 D1 附近踩过这个坑）。
+//
+// 阴性对照：README 里一处「N 例」都没有 → FAIL（否则删掉那句话也能过）。
+func TestFixtureCountDocumented(t *testing.T) {
+	root := repoRoot(t)
+	raw, err := os.ReadFile(filepath.Join(root, "fixtures", "out", "manifest.json"))
+	if err != nil {
+		t.Fatalf("read manifest.json: %v", err)
+	}
+	var manifest struct {
+		Cases []json.RawMessage `json:"cases"`
+	}
+	if err := json.Unmarshal(raw, &manifest); err != nil {
+		t.Fatalf("decode manifest.json: %v", err)
+	}
+	want := len(manifest.Cases)
+	if want == 0 {
+		t.Fatal("manifest.json 有 0 条用例 —— 判据是空的")
+	}
+
+	readmeRaw, err := os.ReadFile(filepath.Join(root, "README.md"))
+	if err != nil {
+		t.Fatalf("read README.md: %v", err)
+	}
+	re := regexp.MustCompile(`(\d+)\s*例`)
+	matches := re.FindAllStringSubmatch(string(readmeRaw), -1)
+	if len(matches) == 0 {
+		t.Fatal("README 里一处「N 例」都没有 —— 判据是空的（数字被删或被改写单位）")
+	}
+	drift := 0
+	for _, m := range matches {
+		got, err := strconv.Atoi(m[1])
+		if err != nil {
+			t.Fatalf("解析 %q: %v", m[0], err)
+		}
+		if got != want {
+			drift++
+			t.Errorf("README 写「%s」，manifest 实际 %d 例 —— 自述数字已漂移", m[0], want)
+		}
+	}
+	// 汇总行只在确实一致时打印：t.Errorf 不中断，否则失败输出里也会出现"全部等于"，误导读者。
+	if drift == 0 {
+		t.Logf("README 的 %d 处「N 例」全部等于 manifest 的 %d 例", len(matches), want)
 	}
 }

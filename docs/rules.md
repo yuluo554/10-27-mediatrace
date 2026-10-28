@@ -229,7 +229,7 @@ M4 那一半一致（`TestM4SubsetConclusionIsStable`，G9）。
 1. 不做跨工具一致性预言（mpv/Chrome/QuickTime 行为一致）。
 2. 不做媒体标签审计（`©nam`/`©too`）。
 3. 不做损坏文件修复（不写回）。
-4. 不做纯 MKV 校验器（MKV 仅 M1 结构对应项）。
+4. 不做纯 MKV 校验器（MKV 首期不做，含 EBML 结构对应项；MKV 输入走 exit 3，不是 FAIL）。
 5. 不做 A/V 同步测量（需解码）。
 6. 不做绝对亮度/色彩正确性。
 7. 不做跨平台差异归因。

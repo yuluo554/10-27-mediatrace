@@ -157,7 +157,7 @@
 | **真实公开样本（≥20 例）** | ✅ 计划：只读字节、不解码 | 来源与许可须逐条登记（样本本体**不入库**，只入 `sha256` + 来源 URL + 许可）；未登记许可的一律不用 |
 | **mkvtoolnix** | ⬜ **GitHub 404**（已迁 Codeberg） | 本次**未能访问**；不引用其源码/文档 |
 | **Codeberg（mbunkus 侧）** | ⬜ 未访问 | 同上 |
-| **`mkvalidator`** | ⬜ **从未亲自运行** | 题面凡提 `mkvalidator`：只写"存在（`foundation-source` 描述含之）"，**不写能力边界**；MKV 首期只做 M1 结构对应项 |
+| **`mkvalidator`** | ⬜ **从未亲自运行** | 题面凡提 `mkvalidator`：只写"存在（`foundation-source` 描述含之）"，**不写能力边界**；MKV 首期不做（非目标），MKV 输入走 exit 3 |
 | **mp4ra boxes 页** | ⬜ 已访问但**未给出 matrix / pasp 层级** | 见 F8：**不用它推断** |
 | **`wiki.gpac.io`** | ⬜ 超时未读 | GPAC 能力只引源码与 issue |
 | **MediaConch 策略源码** | 🟡 未逐条读 | 只写"偏格式合规"，不写逐条能力断言 |

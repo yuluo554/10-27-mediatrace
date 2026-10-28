@@ -43,7 +43,7 @@
 >   （按序全列）/ `hdr_metadata_missing`（gray）/ `hdr_range_suspect`。
 >
 > 每条 `fail` 带四元组证据；对 92 例合成夹具**召回精确、对照组误报 0**（M1–M5 各自核对：
-> 每个模块的误报门覆盖其余 83 例）。默认全集（`--modules` 缺省 = M1–M5）给出真实结论，不再有"未实现"通道。
+> 每个模块的误报门覆盖其余 83 个样本）。默认全集（`--modules` 缺省 = M1–M5）给出真实结论，不再有"未实现"通道。
 > 首期**不做** `--suite` 批跑（首屏 `GATE` 段不出现，见 `docs/report-schema.md §二`）。
 > 计划与口径见 `plan/`，续接入口是 `plan/00-README总览.md`。
 
@@ -97,6 +97,15 @@ chmod +x mediatrace-linux-amd64
 
 > **附件与 tag 树同源**：三个二进制由 tag 树用 `go build -trimpath` 直接产出（无打包步骤），
 > 同参数重复构建逐字节相同。校验与留档见 `plan/RELEASE-M6.md`。
+>
+> **可复现的边界**（两条，都是实测得出的）：
+> 1. "逐字节相同"**仅在同一 Go 工具链版本内成立**——`-trimpath` 抹的是路径，不抹编译器版本。
+>    **发布物由 Go 1.24.5 构建**（`go version -m <binary>` 可核内嵌的 `go1.x.y`）。用别的 Go 版本
+>    重建会得到不同字节，那是工具链差异，不是仓库不自洽。复算请用 `go1.24.5`（CI 三个 job 已钉同版本）。
+> 2. **必须在真 clone 里构建，不能用 `git archive` 导出的树**：二进制内嵌 `vcs.revision`/`vcs.time`/
+>    `vcs.modified`（`go version -m` 可核），而导出树没有 `.git`，这三项会变成 `(devel)`——
+>    产物**尺寸一模一样**（实测 2064568 B）但 `sha256` 不同。复算命令：
+>    `git clone --branch v0.1.0 <repo> && cd <repo> && node tools/tasks.mjs cross`。
 
 ## 退出码
 
@@ -119,6 +128,9 @@ chmod +x mediatrace-linux-amd64
 ## 隐私与边界
 
 - **纯本地、零网络**（无遥测、无版本检查、无在线样本拉取）；判定路径不 import `net`。
+- **首期只支持 ISO BMFF（MP4/MOV/M4A）**：MKV / WebM 不在支持范围，输入这类文件会得到
+  **exit 3**（无法解析，不进判定通道）——**不是 FAIL**。"看不懂"不等于"文件有问题"。
+  同理，纯文本、随机字节等非 ISO BMFF 输入一律 exit 3。
 - **只读**：不写回输入文件、不做修复、不重写容器。
 - **不解码**：不读 `mdat` 载荷语义；运行时**不依赖 ffmpeg**，不链接 `libav*`。
 - 报告默认**不写绝对路径**（只写文件名与字节偏移）。

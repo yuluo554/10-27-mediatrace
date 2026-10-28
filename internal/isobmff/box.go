@@ -6,8 +6,10 @@
 //   - size==1（64 位 largesize）与 size==0（到文件尾）两种合法形态都要正确展开；
 //   - 结构异常只报一次，不连环报（同一根因合并）：越界的子盒**子树不再展开**；
 //   - 内容级异常（size<8、子盒越界、声明 size 越过文件、深度超限）**不 panic、
-//     不硬失败**，而是记成 `Anomaly` 交给规则层转 finding；只有"连根盒头都读不出来"
-//     （剩余 < 8 字节）才返回 error（CLI 映射退出码 3）。
+//     不硬失败**，而是记成 `Anomaly` 交给规则层转 finding；返回 error 的只有两种
+//     "盒子树无法建立"的情形（CLI 均映射退出码 3，不进判定通道）：
+//     ① 剩余 < 8 字节（`ErrShortHeader`）；② 首盒子不像 ISO BMFF（`ErrNotISOBMFF`，
+//     纯文本 / MKV / 随机字节）。
 package isobmff
 
 import (
@@ -76,10 +78,56 @@ type Anomaly struct {
 var (
 	// ErrShortHeader 表示剩余字节不足以构成盒头（树无法建立 → CLI 退出码 3）。
 	ErrShortHeader = errors.New("isobmff: short box header")
+	// ErrNotISOBMFF 表示输入**根本不是 ISO BMFF**：首盒子的类型不在已知顶层集合里，
+	// 或首盒子的 size 不自洽（非 0/1 形态下 < 8 或 > 文件长度）。
+	// 这是"看不懂"而不是"文件里的盒子有问题"——CLI 映射退出码 3（data/README §5.6），
+	// **不进判定通道**。刻意不复用 ErrShortHeader：后者的语义是"剩余字节不够构盒头"，
+	// 拿来报"这是一段纯文本"会让错误信息说成 too short（诊断 D1 的教训）。
+	ErrNotISOBMFF = errors.New("isobmff: not an ISO BMFF stream")
 	// ErrBadSize 保留给"size 字段非法"的历史语义；当前实现把 size<8 记为
 	// AnomTooSmallSize（转 finding），不再以此 error 直接失败。
 	ErrBadSize = errors.New("isobmff: box size smaller than header")
 )
+
+// topLevelTypes 是"允许出现在文件首部"的已知顶层盒类型白名单。
+//
+// 为什么需要它：没有首盒嗅探时，任意非媒体字节都会被当成盒子树解析
+// （`hello world…` → size=0x68656c6c、type="o wo"），得到 FAIL + 退出码 1 ——
+// "看不懂"被判定成"文件有问题"（诊断 D1）。白名单取 ISO BMFF 的顶层盒全集：
+// `uuid`/`pdin` 等少见但与媒体无关的盒也放行，因为它们的出现不构成"不是 BMFF"。
+var topLevelTypes = map[string]struct{}{
+	"ftyp": {}, "styp": {}, "moov": {}, "mdat": {}, "free": {}, "skip": {},
+	"wide": {}, "pnot": {}, "uuid": {}, "sidx": {}, "moof": {}, "mfra": {},
+	"meta": {}, "pdin": {}, "emsg": {},
+}
+
+// sniffFirstBox 校验首盒子像不像 ISO BMFF 的顶层盒。
+//
+// 判据（两条都过才继续解析）：
+//   - 首盒子 type ∈ topLevelTypes；
+//   - 首盒子 size 为 0（到文件尾）/ 1（largesize）或落在 [8, len(data)] 内。
+//
+// 只嗅探**第一个**盒子：后续盒子由 parseChildren 的正常遍历规则处理，
+// 内容级异常（`too_small_size` / 越界）仍走 Anomaly → finding 的通道，不在这里拦。
+func sniffFirstBox(data []byte) error {
+	size32 := binary.BigEndian.Uint32(data[0:4])
+	typ := string(data[4:8])
+	if _, ok := topLevelTypes[typ]; !ok {
+		return fmt.Errorf("%w: first box type %q is not a known top-level box", ErrNotISOBMFF, typ)
+	}
+	switch size32 {
+	case 0, 1: // 到文件尾 / 64 位 largesize：两种合法形态
+		return nil
+	}
+	size := uint64(size32)
+	if size < 8 {
+		return fmt.Errorf("%w: first box %q declares size %d (< 8-byte header)", ErrNotISOBMFF, typ, size)
+	}
+	if size > uint64(len(data)) {
+		return fmt.Errorf("%w: first box %q declares size %d > file size %d", ErrNotISOBMFF, typ, size, len(data))
+	}
+	return nil
+}
 
 // containerTypes 是"已知容器盒"集合：只有这些盒才递归展开子盒。
 // 用白名单而非"尝试解析"：避免把样本数据误当盒头。
@@ -106,12 +154,16 @@ func IsContainer(typ string) bool {
 // 返回的 root 是伪根（Type=""、Size=len(data)），其 Children 为顶层盒，
 // Anomalies 为遍历期记录的内容级结构异常。
 //
-// 唯一返回 error 的情形：剩余字节不足以读出盒头（连根盒头都读不出），
-// 即"盒子树无法建立"（CLI 退出码 3，不是 gray）。
+// 返回 error 的两种情形（都映射 CLI 退出码 3，都不进判定通道）：
+//   - ErrShortHeader：剩余字节不足以读出盒头（连根盒头都读不出）；
+//   - ErrNotISOBMFF：首盒子不像 ISO BMFF 顶层盒（纯文本、MKV/EBML、随机字节）。
 func Parse(data []byte) (*Box, error) {
 	root := &Box{Offset: 0, HeaderSize: 0, Size: uint64(len(data)), ParentEnd: uint64(len(data))}
 	if len(data) < 8 {
 		return nil, fmt.Errorf("%w: file too short (%d bytes < 8)", ErrShortHeader, len(data))
+	}
+	if err := sniffFirstBox(data); err != nil {
+		return nil, err
 	}
 	if err := parseChildren(root, data); err != nil {
 		return nil, err

@@ -14,8 +14,8 @@ jobs:
   layout:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
       - name: 布局门
@@ -73,10 +73,10 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
-          go-version: "1.21"
+          go-version: "1.24.5"
           cache: false
       - name: build
         run: go build ./...
@@ -88,10 +88,10 @@ jobs:
   fixtures:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
-          go-version: "1.21"
+          go-version: "1.24.5"
           cache: false
       - name: generate twice and compare byte-for-byte
         run: |
@@ -112,19 +112,34 @@ jobs:
   cross:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
-          go-version: "1.21"
+          go-version: "1.24.5"
           cache: false
       - name: cross-compile three targets
         run: |
           set -euo pipefail
           mkdir -p dist
-          GOOS=linux GOARCH=amd64 go build -trimpath -o dist/mediatrace-linux-amd64 ./cmd/mediatrace
-          GOOS=darwin GOARCH=arm64 go build -trimpath -o dist/mediatrace-darwin-arm64 ./cmd/mediatrace
-          GOOS=windows GOARCH=amd64 go build -trimpath -o dist/mediatrace-windows-amd64.exe ./cmd/mediatrace
+          # ldflags 必须与 tools/tasks.mjs 的 LDFLAGS 逐字一致：这是"CI 构建形态 == 发布形态"
+          # 的唯一保证。缺 -s -w 时产物带 debug_info、体积差约 1.07 MB，而 `--version`
+          # 输出完全相同（main.version 默认已是 0.1.0）——只跑 --version 发现不了。
+          GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.version=0.1.0" -o dist/mediatrace-linux-amd64 ./cmd/mediatrace
+          GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.version=0.1.0" -o dist/mediatrace-darwin-arm64 ./cmd/mediatrace
+          GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.version=0.1.0" -o dist/mediatrace-windows-amd64.exe ./cmd/mediatrace
           ls -l dist
+      - name: release-shape assertion (stripped, not debug build)
+        run: |
+          set -euo pipefail
+          # 发布物 linux-amd64 = 2064568 B；不带 ldflags = 3135741 B。
+          # 上界取 2500000：两边各留 ~430 KB / ~635 KB 余量，不会因正常波动误红。
+          size=$(stat -c%s dist/mediatrace-linux-amd64)
+          echo "linux-amd64 size = $size bytes"
+          test "$size" -lt 2500000 || {
+            echo "FAIL: $size >= 2500000 — cross job 构建的不是发布形态（缺 -ldflags \"-s -w\")"
+            exit 1
+          }
+          echo "ok: stripped release shape"
       - name: binary runs with an empty PATH (proves no runtime ffmpeg dependency)
         run: |
           set -euo pipefail

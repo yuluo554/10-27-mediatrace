@@ -114,7 +114,15 @@ func runAudit(args []string, stdout, stderr io.Writer) int {
 
 	root, err := isobmff.Parse(data)
 	if err != nil {
-		// 解析失败是 error，不是 gray（plan/00 D11）
+		// 解析失败是 error，不是 gray（plan/00 D11）。两条通道都归退出码 3：
+		//   · ErrNotISOBMFF —— 首盒子不像 ISO BMFF（纯文本 / MKV / 随机字节）：
+		//     "看不懂"不等于"文件有问题"，绝不能落进判定通道给出 FAIL(1)。
+		//   · ErrShortHeader / 其它 —— 剩余字节不足以构盒头。
+		// 措辞只用 basename（不泄漏绝对路径）。
+		if errors.Is(err, isobmff.ErrNotISOBMFF) {
+			fmt.Fprintf(stderr, "mediatrace: not an ISO BMFF file: %s (%v)\n", filepath.Base(path), err)
+			return policy.ExitUsage
+		}
 		fmt.Fprintf(stderr, "mediatrace: parse error in %s: %v\n", filepath.Base(path), err)
 		return policy.ExitUsage
 	}
