@@ -123,10 +123,10 @@ jobs:
           mkdir -p dist
           # ldflags 必须与 tools/tasks.mjs 的 LDFLAGS 逐字一致：这是"CI 构建形态 == 发布形态"
           # 的唯一保证。缺 -s -w 时产物带 debug_info、体积差约 1.07 MB，而 `--version`
-          # 输出完全相同（main.version 默认已是 0.1.0）——只跑 --version 发现不了。
-          GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.version=0.1.0" -o dist/mediatrace-linux-amd64 ./cmd/mediatrace
-          GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.version=0.1.0" -o dist/mediatrace-darwin-arm64 ./cmd/mediatrace
-          GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.version=0.1.0" -o dist/mediatrace-windows-amd64.exe ./cmd/mediatrace
+          # 输出完全相同（main.version 默认已是 0.1.1）——只跑 --version 发现不了。
+          GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.version=0.1.1" -o dist/mediatrace-linux-amd64 ./cmd/mediatrace
+          GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.version=0.1.1" -o dist/mediatrace-darwin-arm64 ./cmd/mediatrace
+          GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.version=0.1.1" -o dist/mediatrace-windows-amd64.exe ./cmd/mediatrace
           ls -l dist
       - name: release-shape assertion (stripped, not debug build)
         run: |

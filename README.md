@@ -24,7 +24,7 @@
 | **M3** | 时长口径判定（模块 M2） | ✅ 已完成 |
 | **M4** | 时间戳判定（模块 M3） | ✅ 已完成 |
 | **M5** | 偏移与显示判定（模块 M4+M5）+ 报告 | ✅ 已完成 |
-| **M6** | 发布（tag + Release + 留档） | ✅ 已完成 |
+| **M6** | 发布（tag + Release + 留档） | ✅ 已完成（`v0.1.0`；`v0.1.1` 已定版待推送） |
 
 > **当前进度**：**M1–M5 已收尾，五个模块全部实现**：
 > - `mediatrace audit <file> --modules M1` → `duplicate_moov` / `stco_out_of_mdat` /
@@ -91,7 +91,7 @@ sha256sum -c SHA256SUMS            # macOS: shasum -a 256 -c SHA256SUMS
 #   （与 SHA256SUMS 里对应行比对）
 
 chmod +x mediatrace-linux-amd64
-./mediatrace-linux-amd64 --version   # → mediatrace 0.1.0
+./mediatrace-linux-amd64 --version   # → mediatrace <版本>（与 tag 名去掉 `v` 相同）
 ./mediatrace-linux-amd64 audit your.mp4
 ```
 
@@ -104,8 +104,8 @@ chmod +x mediatrace-linux-amd64
 >    重建会得到不同字节，那是工具链差异，不是仓库不自洽。复算请用 `go1.24.5`（CI 三个 job 已钉同版本）。
 > 2. **必须在真 clone 里构建，不能用 `git archive` 导出的树**：二进制内嵌 `vcs.revision`/`vcs.time`/
 >    `vcs.modified`（`go version -m` 可核），而导出树没有 `.git`，这三项会变成 `(devel)`——
->    产物**尺寸一模一样**（实测 2064568 B）但 `sha256` 不同。复算命令：
->    `git clone --branch v0.1.0 <repo> && cd <repo> && node tools/tasks.mjs cross`。
+>    产物**尺寸几乎一样**（只差版本串那几位）但 `sha256` 不同。复算命令：
+>    `git clone --branch <tag> <repo> && cd <repo> && node tools/tasks.mjs cross`。
 
 ## 退出码
 
@@ -149,6 +149,7 @@ chmod +x mediatrace-linux-amd64
 | `docs/report-schema.md` | 三态 JSON 结构 + 首屏三段 + 退出码 |
 | `docs/fixture-pools.md` | C1–C7 构造纪律 |
 | `AGENTS.md` | 方法论锚点与门命令（新对话第一件事） |
+| `CHANGELOG.md` | 版本变更记录（从 `v0.1.1` 起） |
 
 ## 许可
 

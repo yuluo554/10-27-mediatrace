@@ -26,7 +26,7 @@ function readFileSyncSafe(p) {
 }
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const VERSION = "0.1.0";
+const VERSION = "0.1.1";
 const LDFLAGS = `-s -w -X main.version=${VERSION}`;
 // Windows 的 CreateProcess 要求可执行文件带 `.exe` 后缀：
 // `bin/mediatrace` 即使文件存在也会 ENOENT（本机实测 2026-10-27）。

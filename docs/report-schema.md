@@ -10,7 +10,7 @@
 ```json
 {
   "tool": "mediatrace",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "file": "sample.mp4",
   "modules": ["M1", "M2"],
   "findings": [
