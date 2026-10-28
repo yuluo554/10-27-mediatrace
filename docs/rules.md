@@ -1,7 +1,8 @@
 # 规则表（人类可读 + 反例）
 
-> 状态：**M2 已实现模块 M1（结构自洽）**；M2–M5（时长/时间戳/偏移/显示）的规则 ID 已定名，
-> 实现待 M3–M5。规则 ID 与 `internal/rules/` 实现一一对应。
+> 状态：**M3 已收尾**——已实现**模块 M1（结构自洽）**与**模块 M2（时长口径）**；
+> 模块 M3–M5（时间戳/偏移/显示）的规则 ID 已定名，实现待 M4–M5。规则 ID 与
+> `internal/rules/` 实现一一对应。
 > 口径数字只在 `data/README.md §5`；本文只写"规则在判什么、什么不算违规"。
 > 本节的反例样本 id 一律指向 `fixtures/out/manifest.json` 里的 `case_id`。
 
@@ -57,16 +58,55 @@
 
 ## M2 · 时长口径
 
-| RuleID | 判什么 | 反例（不算违规） |
-|---|---|---|
-| `duration_mismatch` | 三口径互比超容差 | 差值 ≤ 容差（舍入）；`mvhd.duration==0` 的分片文件（落 gray） |
-| `elst_item_rate_not_one` | `media_rate ≠ 1` | `media_rate == 1` 的普通段 |
-| `elst_item_order_suspect` | 段次序与首帧 PTS 对不上 | 段次序正确但时长有别（那是 `duration_mismatch`） |
-| `empty_edit` | `media_time == -1` 空 edit | 空 edit 仅贡献延迟——**这是信息，不是缺陷**；只有与显示时长矛盾才 fail |
-| `first_pts_outside_media` | 首帧 PTS 不落在 media 区间 | `media_time == -1`（无 media 区间） |
+实现：`internal/rules/duration/`（模块号 `M2`；`rules.go` 里 `m2` 转调它）。
+判定对象是**同一个文件里多条时长口径是否互相自洽**，不是"这个时长对不对"。
 
-**关键区分**（`plan/01 §八` 创新点）：**"段次序错"与"时长错"必须分开报**。
-排序 `elst` 会掩盖前者，所以**编号不排序**（`plan/00` D10）。
+**参与互比的口径**（全部换算到公共时基，见下）：
+
+| 口径 | 来自 | 原生时基 |
+|---|---|---|
+| `stts_sum` | `Σ(stts.count × stts.duration)` | 轨道 `mdhd.timescale` |
+| `mdhd_duration` | `mdhd.duration`（**判定基准**） | 轨道 `mdhd.timescale` |
+| `tkhd_duration` | `tkhd.duration` | 影片 `mvhd.timescale` |
+| `mvhd_duration` | `mvhd.duration` | 影片 `mvhd.timescale` |
+| `elst_sum` | `Σ elst.segment_duration`（有 `edts` 时） | 影片 `mvhd.timescale` |
+
+**公共时基 = 影片时基 `mvhd.timescale`**（`data/README §5.1`）：`mvhd`/`tkhd`/`elst` 三个口径
+原生就在那里；媒体侧向下取整换算过来，量化误差严格小于 1 个影片 tick，落在容差内。
+反向（影片→`mdhd`）换算会把粗时基的量化误差放大 `mdhd.timescale/mvhd.timescale` 倍，
+把逐样本取整的合法文件判成超容差（假阳性），故不采用。
+
+**判定基准用 `mdhd.duration`（声明值），不用 `Σstts`**：`Σstts` 由逐样本
+`floor(duration/frames)` 拼出，与声明值天然差几个 tick（如 `M3R03`：`Σstts`=990 vs
+`mdhd.duration`=1000 @600）。`Σstts` 仍作为证据原值报出（`values.stts_sum`），但不参与阈值比较。
+
+| RuleID | 判什么 | 证据（四元组要点） | 反例（不算违规） | 反例样本 id |
+|---|---|---|---|---|
+| `duration_mismatch` | 三口径互比超容差（容差 = `policy.TickTolerance`，1 影片 tick） | 偏移 + 字段路径指向**越界的那一侧**（`mvhd.duration` / `tkhd.duration` / `elst[i].segment_duration`）；`values` 含 `stts_sum`/`mdhd_duration`/`tkhd_duration`/`mvhd_duration`（+ 有 `edts` 时的 `elst_sum`）；`delta` = 最大值−最小值 | 差值 ≤ 1 tick；`mvhd.duration==0` 的分片文件（落 gray）；`Σstts` 与 `mdhd.duration` 的逐样本取整差 | `C4a`(mvhd 2×)、`C4a2`(tkhd 2×)、`C4a3`(mvhd 偏短)、`C4b`、`E2`（对应反例 `K4-duration`、`K10-empty-edit`、`M3R23`） |
+| `elst_item_rate_not_one` | `elst[i].media_rate ≠ 1.0`（16.16） | 偏移指向该条目的 `media_rate` 字段；`values` 含**条目号**（按文件内顺序，**不排序**）+ 原值与期望；**同段不按等速换算** | `media_rate == 1` 的普通段 | `E1`（条目号 **1**） |
+| `elst_item_order_suspect` | 首帧 PTS 落在**后面**的一段，而非首个非空段 | 偏移指向首个非空段的 `media_time`；`values` 含首帧 PTS + 落在哪条 + 应在哪条 | 段次序正确（时长有别 → 那是 `duration_mismatch`）；首帧 PTS 不在任何段（→ 交给 `first_pts_outside_media`） | `E3`（`elst[0].media_time`=45000、`elst[1].media_time`=0） |
+| `empty_edit` | 空 edit（`media_time == -1`）**出现在媒体段之后**或其 `segment_duration == 0` ——自相矛盾 | 偏移指向该条目的 `media_time`；`values` 含 `segment_duration` + 由此产生的**起始偏移** | 空 edit 位于最前且时长非 0：**它只贡献放映延迟、不引用媒体数据，这是信息不是缺陷**；此时若显示时长没计入，由 `duration_mismatch` 报（同一根因不连环报） | 无夹具（`E2`/`K10-empty-edit` 都是合法形态，见下行） |
+| `first_pts_outside_media` | 首帧 PTS 不落在**任何**段的 media 区间 | 偏移指向首个非空段的 `media_time`；`values` 含 PTS 与区间两端；`delta` = 越出字节数 | `media_time == -1`（无 media 区间）；**跨度一致的编辑表**（`Σ非空段` = `mdhd.duration`）：那是合法起点裁剪，属 M4 的 `start_trim` | `C4b`（反例 `K6-priming`、`M4N1`、`M4P3`、`M4P4`） |
+| `duration_unknown` (gray) | `mvhd.duration == 0` 且 `mehd`/末段 `tfdt`+`trun` 都推不出预期时长 | `gray.reason = duration_unknown`（**闭集内，不新增 reason**）；不猜 | 推得出（`trun` 带 `sample_duration` / `trex` 默认值 / `mehd` 有值）→ 不落 gray | `F1`（反例 `K9-frag`、`C5b`、`C5c`） |
+
+**关键区分**（`plan/01 §八` 创新点）：**"段次序错"与"时长错"必须分开报**——`E3` 只报
+`elst_item_order_suspect`（三口径本身对齐），`C4b`/`E2` 只报 `duration_mismatch`（段次序正常）。
+排序 `elst` 会掩盖前者，故**编号不排序**（`plan/00` D10）。
+
+**同一根因合并**（`plan/03 §1.3`）：一个轨道最多产出一条 `duration_mismatch`（优先级
+影片级 → `tkhd` → 编辑表跨度），不连环报；空 edit 与显示时长的矛盾就由那一条表达。
+
+**分片与空样本表**：轨道 `stts` 为空（分片轨）时不判其时长——时长由 `moof` 决定，属二期；
+此时 `mvhd.duration == 0` 且推不出才落 `duration_unknown`。
+
+**字段路径的索引口径**（`F14`）：直接用 IR 的 `Box.Path`，**同名兄弟才带 `[i]`**——
+单轨/单 `elst` 文件的路径是 `moov/trak/edts/elst[0].media_time`（不带 `trak[0]`）；
+`elst[i]` 的条目号按文件内顺序、从 0 起，**不排序**。
+
+**对照组误报 0**：`controls` / `m3-regression` / `m4` / `m5` 四组共 **60 例**在模块 M2 下
+**一条 fail/gray 都不许有**，由 `cmd/mediatrace` 的 `TestM2MatchesFixtureTruth` 对整个夹具集
+对账（M2 相关缺陷 8 例**集合相等** + 对照组零 finding）；`--modules M2` 的结论与
+`--modules M1,M2` 中的 M2 那一半必须一致（`TestM2SubsetConclusionIsStable`，G9）。
 
 ---
 

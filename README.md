@@ -21,16 +21,21 @@
 | --- | --- | --- |
 | **M1** | 数据先行（C1–C7 夹具 + 真值） | ✅ 已完成 |
 | **M2** | 结构判定（模块 M1） | ✅ 已完成 |
-| **M3** | 时长口径判定（模块 M2） | ⬜ 未开工 |
+| **M3** | 时长口径判定（模块 M2） | ✅ 已完成 |
 | **M4** | 时间戳判定（模块 M3） | ⬜ 未开工 |
 | **M5** | 偏移与显示判定（模块 M4+M5）+ 报告 | ⬜ 未开工 |
 | **M6** | 发布（tag + Release + 留档） | ⬜ 未开工 |
 
-> **当前进度**：**M1 数据先行 + M2 结构判定已收尾**。模块 **M1（结构自洽）已实现**
-> ——`mediatrace audit <file> --modules M1` 给出真实结论（`duplicate_moov` / `stco_out_of_mdat` /
-> `truncated_mdat` / `child_overruns_parent` / `duplicate_mdat` / `max_depth_exceeded` 等
-> 八条规则，每条 fail 带四元组证据）；对 92 例合成夹具**召回精确、对照组误报 0**。
-> 模块 M2–M5（时长/时间戳/偏移/显示）尚未实现（`--modules` 对它们明确返回退出码 3，**不冒充 PASS**）。
+> **当前进度**：**M1 数据先行 + M2 结构判定 + M3 时长口径判定已收尾**。模块
+> **M1（结构自洽）** 与 **M2（时长口径）** 已实现：
+> - `mediatrace audit <file> --modules M1` → `duplicate_moov` / `stco_out_of_mdat` /
+>   `truncated_mdat` / `child_overruns_parent` / `duplicate_mdat` / `max_depth_exceeded` 等八条规则；
+> - `mediatrace audit <file> --modules M2` → `duration_mismatch`（三口径互比，1 tick 容差）/
+>   `elst_item_rate_not_one`（报条目号）/ `elst_item_order_suspect` / `empty_edit` /
+>   `first_pts_outside_media` / `duration_unknown`（gray）。
+>
+> 每条 `fail` 带四元组证据；对 92 例合成夹具**召回精确、对照组 60 例误报 0**（M1、M2 各自核对）。
+> 模块 M3–M5（时间戳/偏移/显示）尚未实现（`--modules` 对它们明确返回退出码 3，**不冒充 PASS**）。
 > 计划与口径见 `plan/`，续接入口是 `plan/00-README总览.md`。
 
 ## 快速开始

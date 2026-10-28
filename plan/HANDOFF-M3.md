@@ -22,9 +22,10 @@
 | `--modules M1` 接线 | ✅ | `bin/mediatrace audit fixtures/out/c2_stco_out_of_mdat.mp4 --modules M1` → exit 1 + 四元组 |
 | 两门 + 变异验证 | ✅ | `node tools/tasks.mjs gates`（11 判据 / 4 规则）；`verify-gates`（21 组逐组变红） |
 | 本地全套 | ✅ | `node tools/tasks.mjs all` → exit 0 |
-| **M3 实现** | ⬜ **未开工** | 本文件即其入口 |
+| **M3 实现** | ✅ **已完成** | 见 §六 DoD 结果；产物 = `internal/rules/duration`（六条规则）+ `rules.go` 的 `m2` 转调 |
 
-提交：见 `git log --oneline`（末条为 `M2 · 结构判定 …`）。
+提交：见 `git log --oneline`（末条为 `M3 · 时长口径判定 …`）。
+> 注：本交接单 §一 的第 5 行原为 `⬜ 未开工`，M3 收尾时已同提交翻 ✅（见 §六 DoD 结果）。
 
 ---
 
@@ -123,19 +124,34 @@
 
 ---
 
-## 六、DoD 逐项 checklist（M3，取自 `plan/00 §五` 与 `plan/05 §二`）
+## 六、DoD 逐项 checklist（M3，取自 `plan/00 §五` 与 `plan/05 §二`）—— ✅ 收尾已验（2026-10-28）
 
-- [ ] `internal/rules/duration/` 建成，模块 M2 六个 RuleID 全实现
-- [ ] 三口径互比引用 `policy.TickTolerance`（不新写数字），对齐到轨道 timescale
-- [ ] `elst` 按文件内顺序编号、**不排序**；`media_rate≠1` 报条目号
-- [ ] 空 edit（`media_time==-1`）语义实现
-- [ ] `C4a/C4a2/C4a3` 与 `C4b`、`E1/E2/E3` 全部命中；`F1` 落 `duration_unknown` gray
-- [ ] 对照组（60 例）误报 0（**集合相等**断言，与 M1 同构）
-- [ ] 每条 `fail` 带四元组（偏移 + 字段路径 + 值 + 差值）
-- [ ] `--modules M2` 单独跑通且结论 == 全集里 M2 的结论（G9）
-- [ ] `docs/rules.md` M2 节写完（反例指向样本 id）
-- [ ] 三处状态副本 + `plan/00 §三` 台账行同提交翻 ✅ + `plan/HANDOFF-M4.md` 已写
-- [ ] `node tools/tasks.mjs all` 全绿
+- [x] `internal/rules/duration/` 建成，模块 M2 六个 RuleID 全实现 — `RuleIDs` 与 `docs/rules.md` M2 节对账（`duration_mismatch` / `elst_item_rate_not_one` / `elst_item_order_suspect` / `empty_edit` / `first_pts_outside_media` / `duration_unknown`）
+- [x] 三口径互比引用 `policy.TickTolerance`（不新写数字），对齐到公共时基 — 公共时基 = **影片时基 `mvhd.timescale`**（决策 **D12**，`data/README §5.1` 已细化）；比较走 `policy.DurationWithinTolerance`
+- [x] `elst` 按文件内顺序编号、**不排序**；`media_rate≠1` 报条目号 — `E1` → 条目 **1**（`field_path=moov/trak/edts/elst[1].media_rate`，偏移指向该条目 `media_rate` 字段）
+- [x] 空 edit（`media_time==-1`）语义实现 — 只贡献放映延迟、不引用媒体；**领先且非零不报**（`K10-empty-edit` 0 finding）；与显示时长的矛盾由 `duration_mismatch` 一条表达（同一根因不连环报，`E2` 只报 1 条）
+- [x] `C4a`/`C4a2`/`C4a3` 与 `C4b`、`E1/E2/E3` 全部命中；`F1` 落 `duration_unknown` gray — `TestM2MatchesFixtureTruth` 逐例**集合相等**：`C4a`(mvhd 2×)/`C4a2`(tkhd 2×)/`C4a3`(mvhd 偏短)/`C4b`(duration_mismatch + first_pts_outside_media)/`E1`(条目号 1)/`E2`(duration_mismatch)/`E3`(order_suspect)/`F1`(gray, exit 2)
+- [x] 对照组（60 例）误报 0（**集合相等**断言，与 M1 同构） — `controls` + `m3-regression` + `m4` + `m5` 共 **60** 例在 M2 下 0 finding、exit 0（含 `K6-priming`/`M4P3`/`M4P4` 这类"合法起点裁剪"近邻）
+- [x] 每条 `fail` 带四元组（偏移 + 字段路径 + 值 + 差值） — `TestM2FailFindingsCarryFullEvidence` + 渲染层 `ValidateAll` 拒绝
+- [x] `--modules M2` 单独跑通且结论 == 全集里 M2 的结论（G9） — `TestM2SubsetConclusionIsStable`（`--modules M2` == `--modules M1,M2` 的 M2 一半，且幂等）
+- [x] `docs/rules.md` M2 节写完（反例指向样本 id） — 六条规则 + 口径表 + 时基说明 + 反例 `case_id`
+- [x] 三处状态副本 + `plan/00 §三` 台账行同提交翻 ✅ + `plan/HANDOFF-M4.md` 已写
+- [x] `node tools/tasks.mjs all` 全绿
+
+### M3 期间的设计取舍（写清以免被当漏项）
+
+| 取舍 | 为什么 |
+|---|---|
+| **公共时基取 `mvhd.timescale`，不取 `mdhd.timescale`** | `mvhd`/`tkhd`/`elst` 原生就在影片时基；媒体侧向下取整过来的量化误差 < 1 影片 tick，落在 1 tick 容差内。反向换算会把误差放大 `mdhd.timescale/mvhd.timescale` 倍——夹具 `M3R23`（`tkhd`=33@1000、`mdhd`=3000@90000）反算差 30 个媒体 tick，会被判成超容差（假阳性）。已按 D9 改 `data/README §5.1` 并记决策 **D12**；`TestDurationComparesInMovieTimescale` 把这条钉住 |
+| **判定基准用 `mdhd.duration`（声明值），不用 `Σstts`** | 夹具的 `stts` 是逐样本 `floor(duration/frames)` 拼的，`Σstts` 与声明值天然差几个 tick（`M3R03`：990 vs 1000 @600）。若拿 `Σstts` 当判据，`M3R03`/`M3R06`/`M3R12` 三个对照组会被误报。`Σstts` 仍作为证据原值报出（`values.stts_sum`） |
+| **`first_pts_outside_media` 只在"编辑表跨度对不上"时才判** | 跨度一致（`Σ非空段` == `mdhd.duration`）就是一次**合法起点裁剪**：`media_time>0` 且首帧 PTS=0 是裁剪的正常后果，属 M4 的 `start_trim`。若照字面判，`K6-priming`/`M4N1`/`M4P3`/`M4P4` 四个对照/正例会被误报 |
+| **空 edit 不单独成 finding（同一根因合并，F15）** | 真值台账里 `E2` 期望只有 `duration_mismatch`（空 edit 的延迟没被 `mvhd` 计入 → 三口径互斥）。若同时报 `empty_edit`，就变成同一根因连环报。`empty_edit` 的**触发条件**收窄为"空 edit 不在最前 **或** `segment_duration==0`"这类自相矛盾形态（夹具无此形态，由单测覆盖） |
+| **一个轨道最多一条 `duration_mismatch`** | 优先级：影片级（`mvhd` vs 放映时长）→ 轨道级（`tkhd` vs `mdhd`）→ 编辑表跨度 vs `mdhd`。`C4b` 同时违反"影片级"与"编辑表跨度"两条，只报第一条（证据指向 `elst[0].segment_duration`） |
+| **分隔片空样本表轨道** | 分片轨 `stts` 为空、`mdhd.duration`=0，其时长由 `moof` 决定（属二期）。此时只在 `mvhd.duration==0` **且** `mehd`/`trun`/`trex` 都推不出时才落 `duration_unknown`（`F1`）；`K9-frag`/`C5b`/`C5c` 推得出 → 0 finding |
+| **`S1` 类（"差出在 `elst` 而非 `stts`"）以 `C4b`/`E2` 覆盖** | 真值台账里没有独立的"输入 3 段 `elst` + 输出失配"合成对；`C4b`/`E2` 的 `Σelst` 越界形态正是"差值出在编辑表"的同类。已如实写进 `plan/05 §二` M3 DoD |
+
+**M3 未做（如实登记）**：真实样本（22 条，`data/real-samples.json`，本体不入库、`verified: null`）的
+实际审计复跑——需要样本本体才谈得上，属发布前复核；首期门禁以 92 例合成夹具为准。
 
 ---
 
