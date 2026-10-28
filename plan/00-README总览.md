@@ -8,7 +8,7 @@
 
 - **性质**：不参赛项目题 · 发布 GitHub **公开仓库** · 署名 yuluo554
 - **产出**：仓库 `10-27-mediatrace`，命令入口 `mediatrace`；**纯本地单二进制 CLI，只读字节、不解码、运行时不依赖 ffmpeg**
-- **状态**：**M1–M6 全部收尾，v0.1.0 已发布；v0.1.1（非媒体输入退出码修正）已定版，待推送/待 tag（`plan/RELEASE-v0.1.1.md`）**（<https://github.com/yuluo554/10-27-mediatrace>）：五个判定模块 M1–M5 全部实现并对 92 例夹具对账；公开仓库 + `v0.1.0` annotated tag + Release（三平台单二进制 + `SHA256SUMS`，从 tag 树重建、真下载复核）+ 发布留档 `plan/RELEASE-M6.md`；CI 首推全绿（tag 提交 run `40630946597` = 6/6）
+- **状态**：**M1–M6 全部收尾；v0.1.0 与 v0.1.1（非媒体输入退出码修正）均已发布**（留档 `plan/RELEASE-M6.md` / `plan/RELEASE-v0.1.1.md`）（<https://github.com/yuluo554/10-27-mediatrace>）：五个判定模块 M1–M5 全部实现并对 92 例夹具对账；公开仓库 + `v0.1.0` annotated tag + Release（三平台单二进制 + `SHA256SUMS`，从 tag 树重建、真下载复核）+ 发布留档 `plan/RELEASE-M6.md`；CI 首推全绿（tag 提交 run `40630946597` = 6/6）
 - **定位宣言**："ffprobe、MediaInfo、MP4Box、Bento4、mkvalidator 各给一份'我看到的样子'，彼此不对话；mediabunny 明知 `elst` 有它不支持的指令却只 `console.warn`；唯一做过策略判定的 MediaConch 已于 2021 停更，且只查格式合规不查同文件内部字段互相矛盾。**所有人都在'打印'，没有人在'判定'。**"
 - **基准日**：2026-10-27（代理实际检索窗口 **2026-10-27T10:56Z–11:22Z**；标签 `10-27` 是系列编号，不是检索日期）
 
